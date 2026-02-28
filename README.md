@@ -470,5 +470,4 @@ Configure via environment variables or modify `app.py`.
 
 - **Public**: Add legal documents to `public_documents/`
 - **Private**: Upload case-specific files via UI or add to `private_documents/`
-C o u r t M i n d  
- 
+C
