@@ -1,0 +1,474 @@
+# CourtMind - AI Legal Courtroom Simulator
+
+AI-powered legal courtroom simulator using multi-agent orchestration with LangGraph. Simulates realistic trial proceedings with defense lawyers, prosecutors, and judges using advanced RAG for accurate legal reasoning.
+
+---
+
+## How to Run
+
+### Environment Setup
+
+Before running the application, create a `.env` file in the project root with the following configuration:
+
+```bash
+# Ollama Configuration
+OLLAMA_MODEL=gpt-oss:120b-cloud
+
+# External APIs
+SERPER_API_KEY=your_serper_api_key_here
+KANOON_API_KEY=your_kanoon_api_key_here
+```
+
+**Important:** To use the `gpt-oss:120b-cloud` model:
+
+1. Visit **https://ollama.com/**
+2. Click **Sign In** and create an account or log in
+3. Open **Ollama Desktop** application
+4. Sign in to Ollama Desktop with your account credentials
+5. The cloud model will be accessible after authentication
+
+**API Keys:**
+
+- **SERPER_API_KEY**: Get your key from [Serper.dev](https://serper.dev/)
+- **KANOON_API_KEY**: Get your key from [Kanoon.com](https://kanoon.com/)
+
+---
+
+### Method 1: Using Batch Files (Recommended)
+
+**First-time setup:**
+
+```bash
+setup.bat
+```
+
+Installs Python dependencies and sets up the environment.
+
+**Launch the application:**
+
+```bash
+start_full_system.bat
+```
+
+Opens two windows:
+
+- Backend API: http://localhost:8000
+- UI Interface: http://localhost:8501
+
+**UI-only launch** (if backend already running):
+
+```bash
+run_enhanced_ui.bat
+```
+
+### Method 2: Manual Installation (If setup.bat is not used)
+
+#### Prerequisites
+
+Before starting, ensure you have:
+- **Python 3.9 or higher** installed ([Download](https://www.python.org/))
+- **Ollama** installed ([Download](https://ollama.com/download))
+
+#### Step 1: Verify Python Installation
+
+```bash
+python --version
+```
+
+Should display Python 3.9+. If not, install Python and add it to PATH.
+
+#### Step 2: Create Virtual Environment (Recommended)
+
+```bash
+# Create virtual environment
+python -m venv venv
+
+# Activate it
+# On Windows:
+venv\Scripts\activate.bat
+# On Linux/Mac:
+source venv/bin/activate
+```
+
+#### Step 3: Upgrade pip
+
+```bash
+python -m pip install --upgrade pip
+```
+
+#### Step 4: Install Core Dependencies
+
+```bash
+pip install -r requirements.txt
+```
+
+This installs all necessary packages including Ollama, LangChain, FastAPI, Streamlit, and ChromaDB.
+
+#### Step 5: Install RAG Enhancement Dependencies
+
+For advanced hallucination detection and hybrid retrieval:
+
+```bash
+pip install sentence-transformers rank-bm25 nltk scikit-learn
+```
+
+**Note:** These are optional but highly recommended for better accuracy (70% less hallucinations).
+
+#### Step 6: Create Required Directories
+
+```bash
+# On Windows:
+mkdir private_documents public_documents chroma_db
+
+# On Linux/Mac:
+mkdir -p private_documents public_documents chroma_db
+```
+
+- **private_documents/**: Store user-uploaded case files
+- **public_documents/**: Store legal corpus (IPC, case law)
+- **chroma_db/**: Vector database storage
+
+#### Step 7: Configure Environment Variables
+
+Create a `.env` file in the project root:
+
+```bash
+# Ollama Configuration
+OLLAMA_MODEL=gpt-oss:120b-cloud
+OLLAMA_BASE_URL=https://cloud.ollamahub.com
+
+# External APIs
+SERPER_API_KEY=your_serper_api_key_here
+KANOON_API_KEY=your_kanoon_api_key_here
+```
+
+**Get API Keys:**
+- **SERPER_API_KEY**: [Serper.dev](https://serper.dev/)
+- **KANOON_API_KEY**: [Kanoon.com](https://kanoon.com/)
+
+#### Step 8: Install and Configure Ollama
+
+**Verify Ollama installation:**
+
+```bash
+ollama --version
+```
+
+If not installed, download from [ollama.com/download](https://ollama.com/download)
+
+**Download Required Models:**
+
+1. **Main LLM Model (gpt-oss:120b-cloud):**
+   
+   ```bash
+   ollama pull gpt-oss:120b-cloud
+   ```
+   
+   This is a large cloud-based model (~10-20 minutes download time). Requires signing into Ollama Desktop:
+   - Visit [ollama.com](https://ollama.com)
+   - Sign in or create an account
+   - Open Ollama Desktop and authenticate
+   - The cloud model becomes accessible
+
+2. **Embedding Model (nomic-embed-text):**
+   
+   ```bash
+   ollama pull nomic-embed-text
+   ```
+   
+   Smaller model for local embeddings (~1-2 minutes download).
+
+**Verify Models are Downloaded:**
+
+```bash
+ollama list
+```
+
+Should show both `gpt-oss:120b-cloud` and `nomic-embed-text`.
+
+#### Step 9: Add Legal Documents
+
+Add legal reference documents to `public_documents/` folder:
+- Indian Penal Code (IPC)
+- Case law precedents
+- Legal statutes
+
+**Note:** First run will index all documents (2-5 minutes). Subsequent runs use cached embeddings.
+
+#### Step 10: Launch Application
+
+**Start Backend:**
+
+```bash
+python app.py
+```
+
+Backend runs on http://localhost:8000
+
+**Start UI** (in a new terminal):
+
+```bash
+streamlit run interface\enhanced_stapp.py
+```
+
+UI runs on http://localhost:8501
+
+---
+
+### Method 3: Quick Launch (After Initial Setup)
+
+**Step 1: Start the backend**
+
+```bash
+python app.py
+```
+
+**Step 2: Start the UI** (in a new terminal)
+
+```bash
+streamlit run interface\enhanced_stapp.py
+```
+
+### Method 4: Terminal Testing with `test_api_demo.py`
+
+**Test via command line without UI:**
+
+```bash
+# Terminal 1: Start backend
+python app.py
+
+# Terminal 2: Run test script
+python test_api_demo.py                # Uses sample_case.txt
+python test_api_demo.py your_case.txt  # Uses custom case file
+```
+
+**Script Features:**
+
+- **Color-coded output** - Different colors for each agent type
+- Lawyer (Blue), Prosecutor (Red), Judge (Yellow), Verdict (Green)
+- **Real-time progress tracking** - Shows iteration flow and timing
+- **Live streaming** - SSE streaming from backend API
+- **Full agent outputs** - Displays complete arguments and reasoning
+- **Detailed summary** - Statistics at completion (iterations, time, agents)
+- **Error handling** - Helpful hints if backend not running or timeouts
+- **Interruptible** - Graceful handling of Ctrl+C
+- **No UI needed** - Perfect for automated testing and CI/CD
+
+---
+
+### Using the Application (UI)
+
+1. Open browser to **http://localhost:8501**
+2. Enter case details or upload documents (sample provided)
+3. Click ** Start Courtroom Simulation**
+4. Watch the live trial proceedings with real-time updates
+
+---
+
+## Features
+
+### Core Capabilities
+
+- **Multi-Agent System**: Defense lawyer, prosecutor, and judge agents with distinct roles
+- **Realistic Trial Flow**: Opening statements → Arguments → Rebuttals → Verdict
+- **Citation Enforcement**: All legal claims must cite source documents ([IPC-1], [CAS-2])
+- **Hallucination Detection**: Verifies claims against retrieved legal context
+- **Real-Time UI**: Live metrics, timeline, and conversation display
+
+### Legal Research Integration
+
+- **Kanoon API**: Fetches relevant Indian legal cases automatically
+- **Document Summarization**: Processes large legal documents efficiently
+- **Web Search**: Retrieves additional legal information when needed
+- **Vector Database**: ChromaDB for fast legal document retrieval
+
+### Interactive Features
+
+- Upload private case files (PDFs, TXT, DOCX)
+- View public legal documents (IPC, case precedents)
+- Real-time simulation metrics (citations, confidence, iterations)
+- Timeline tracking of agent activities
+- Full conversation history with formatted legal arguments
+
+---
+
+## Architecture
+
+### System Components
+
+```
+┌─────────────────────────────────────────────────────────┐
+│                    Streamlit UI                         │
+│              (interface/enhanced_stapp.py)              │
+└─────────────────────────────────────────────────────────┘
+                          │
+                          ↓
+┌─────────────────────────────────────────────────────────┐
+│                   FastAPI Backend                       │
+│                    (app.py)                             │
+└─────────────────────────────────────────────────────────┘
+                          │
+                          ↓
+┌─────────────────────────────────────────────────────────┐
+│                 LangGraph Workflow                      │
+│                (core/workflow.py)                       │
+└─────────────────────────────────────────────────────────┘
+                          │
+         ┌────────────────┼────────────────┐
+         ↓                ↓                ↓
+    ┌────────┐      ┌──────────┐     ┌──────────┐
+    │ Lawyer │      │Prosecutor│     │  Judge   │
+    └────────┘      └──────────┘     └──────────┘
+         │                │                │
+         └────────────────┼────────────────┘
+                          ↓
+         ┌────────────────────────────────┐
+         │   Enhanced RAG System          │
+         │ (core/enhanced_rag_system.py)  │
+         └────────────────────────────────┘
+                          │
+         ┌────────────────┼────────────────┐
+         ↓                ↓                ↓
+    ┌─────────┐     ┌──────────┐    ┌──────────┐
+    │ChromaDB │     │  Kanoon  │    │   Web    │
+    │ Vector  │     │ API      │    │  Search  │
+    │  Store  │     │          │    │          │
+    └─────────┘     └──────────┘    └──────────┘
+```
+
+### Agent Workflow
+
+```
+1. Kanoon Fetcher      → Retrieves relevant Indian legal cases
+2. Document Summarizer → Summarizes fetched documents
+3. Initial Retriever   → Comprehensive document retrieval with RAG
+4. Defense Lawyer      → Opening statement (with citations)
+5. Prosecutor         → Response to defense (with citations)
+6. Judge              → Evaluates arguments, routes next speaker
+7. [Repeat 4-6]       → Alternating debate until conclusion
+8. Verdict Agent      → Final verdict based on all arguments
+```
+
+### Key Technologies
+
+- **LangGraph**: Multi-agent orchestration and state management
+- **LangChain**: Document processing and LLM integration
+- **FastAPI**: Async backend with SSE streaming
+- **Streamlit**: Interactive web interface
+- **ChromaDB**: Vector database for legal documents
+- **Groq/OpenAI/Ollama**: LLM providers for agent reasoning
+
+---
+
+## Advanced RAG Techniques
+
+### 1. Intelligent Chunking
+
+- Detects legal structure (IPC sections, case names, numbered lists)
+- Preserves section boundaries during chunking
+- No mid-section cuts that lose context
+- Semantic chunking with overlap for unstructured text
+
+### 2. Citation Enforcement
+
+- Mandatory citation format: `[IPC-1]`, `[CAS-2]`, `[EVI-1]`
+- Automatic verification after each agent response
+- Citation density tracking and logging
+- Warnings for uncited claims
+
+### 3. Hallucination Detection
+
+- Extracts legal claims from agent responses
+- Verifies claims against retrieved context
+- Confidence scoring (e.g., "4/5 claims verified")
+- Real-time warnings for unsupported arguments
+
+### 4. Legal-Specific Re-Ranking
+
+Document scoring by importance:
+
+- IPC sections: 2.0x weight
+- Supreme Court cases: 2.5x weight
+- Case precedents: 1.8x weight
+- Evidence mentions: 1.6x weight
+
+### 5. Structured Context Presentation
+
+Categorizes retrieved documents:
+
+- IPC Sections
+- Case Precedents
+- Legal Principles
+- Evidence & Facts
+- Procedural Law
+
+Each document tagged with citation markers for easy reference.
+
+### 6. Intelligent Context Compression
+
+- Preserves IPC mentions (5.0x importance)
+- Preserves case citations (3.0x importance)
+- Compresses 18K+ → 15K max while retaining key legal citations
+- Extracts key points from lower-priority documents
+
+### RAG Pipeline Flow
+
+```
+Query → Retrieval → Re-Ranking → Compression → Structuring → Verification
+   ↓         ↓           ↓            ↓            ↓             ↓
+Legal    Vector DB   Legal       Context      Categories    Citation
+Terms    Search      Scoring     Fitting      [IPC], [CAS]  Checking
+```
+
+---
+
+## Project Structure
+
+```
+law_courtroom_simulator/
+├── agents/                    # Agent implementations
+│   ├── lawyer.py             # Defense counsel
+│   ├── prosecutor.py         # Prosecution
+│   ├── judge.py              # Judge with routing logic
+│   ├── initial_retriever.py  # Enhanced RAG retrieval
+│   ├── verdict_agent.py      # Final verdict generation
+│   ├── kanoon_fetcher.py     # Case law fetching
+│   └── document_summarizer.py
+├── core/                      # Core system components
+│   ├── workflow.py           # LangGraph workflow
+│   ├── enhanced_rag_system.py # Advanced RAG implementation
+│   ├── chroma_store.py       # Vector database
+│   └── advanced_rag.py       # Additional RAG utilities
+├── interface/                 # UI components
+│   └── enhanced_stapp.py     # Streamlit interface
+├── public_documents/          # Legal document corpus
+│   └── indian_penal_code.txt
+├── private_documents/         # User-uploaded case files
+├── chroma_db/                # Vector database storage
+├── app.py                    # FastAPI backend
+├── test_api_demo.py          # Terminal testing script (no UI needed)
+├── requirements.txt          # Python dependencies
+├── sample_case.txt           # Example case file
+├── setup.bat                 # Automated setup
+├── start_full_system.bat     # Launch script (backend + UI)
+└── run_enhanced_ui.bat       # UI-only launch
+```
+
+---
+
+### LLM Providers
+
+The system supports multiple LLM providers with automatic fallback:
+
+- Groq (default)
+- OpenAI
+- Ollama (local/cloud)
+
+Configure via environment variables or modify `app.py`.
+
+### Document Sources
+
+- **Public**: Add legal documents to `public_documents/`
+- **Private**: Upload case-specific files via UI or add to `private_documents/`
+C o u r t M i n d  
+ 
