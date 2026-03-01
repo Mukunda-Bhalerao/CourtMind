@@ -1,7 +1,7 @@
 # --- FINAL MODIFIED agents/web_search.py ---
 
 from .Internet_data_retriever.internet_data import DataRetrievalCrew
-from .base import AgentState
+# AgentState removed during refactor
 from langchain_core.messages import HumanMessage
 # We no longer need to import crewai's LLM wrapper
 # from crewai import LLM 
@@ -22,7 +22,7 @@ class WebSearcherAgent:
     # The entire problematic conversion function is now deleted.
     # --- END OF FIX ---
 
-    async def process(self, state: AgentState) -> AgentState:
+    async def process(self, state: dict) -> dict:
         # Check web search limit (max 3 searches per workflow)
         current_count = state.get("web_search_count", 0)
         if current_count >= 3:

@@ -1,0 +1,106 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>CourtMind - AI Legal Simulation</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+</head>
+
+<body class="bg-gray-900 text-white min-h-screen">
+
+    <!-- Header -->
+    <div class="bg-gray-800 p-6 shadow-lg">
+        <h1 class="text-3xl font-bold text-center">
+            &#9878; CourtMind &ndash; Agentic AI Legal Courtroom Simulation
+        </h1>
+    </div>
+
+    <div class="container mx-auto p-8">
+
+        <!-- Structured Input Form -->
+        <form method="post" action="/simulate" class="space-y-6">
+
+            <div>
+                <label class="block text-lg font-semibold">Victim Narrative</label>
+                <textarea name="victim" rows="3"
+                    class="w-full p-3 bg-gray-800 rounded border border-gray-700"></textarea>
+            </div>
+
+            <div>
+                <label class="block text-lg font-semibold">Accused Narrative</label>
+                <textarea name="accused" rows="3"
+                    class="w-full p-3 bg-gray-800 rounded border border-gray-700"></textarea>
+            </div>
+
+            <div>
+                <label class="block text-lg font-semibold">Evidence Details</label>
+                <textarea name="evidence" rows="3"
+                    class="w-full p-3 bg-gray-800 rounded border border-gray-700"></textarea>
+            </div>
+
+            <div>
+                <label class="block text-lg font-semibold">Exception Claims (Self-defense, etc.)</label>
+                <textarea name="exceptions" rows="2"
+                    class="w-full p-3 bg-gray-800 rounded border border-gray-700"></textarea>
+            </div>
+
+            <button type="submit"
+                class="bg-blue-600 hover:bg-blue-700 px-6 py-3 rounded font-bold">
+                Run Simulation
+            </button>
+        </form>
+
+        {% if result %}
+        <hr class="my-10 border-gray-700">
+
+        <!-- Results Section -->
+        <div class="grid grid-cols-2 gap-8">
+
+            <!-- Deterministic Analysis -->
+            <div class="bg-gray-800 p-6 rounded shadow">
+                <h2 class="text-xl font-bold mb-4">Deterministic Analysis</h2>
+                <p><strong>Section:</strong>
+                    {{ result.case_analysis.evaluation_result.section }}
+                </p>
+                <p><strong>Burden Stage:</strong>
+                    {{ result.case_analysis.burden_result.burden_stage }}
+                </p>
+                <p><strong>Confidence Score:</strong>
+                    {{ result.case_analysis.burden_result.confidence_score }}
+                </p>
+                <p><strong>Evidence Score:</strong>
+                    {{ result.case_analysis.evidence_weight_result.overall_evidence_score }}
+                </p>
+            </div>
+
+            <!-- Simulation -->
+            <div class="bg-gray-800 p-6 rounded shadow">
+                <h2 class="text-xl font-bold mb-4">Simulation Output</h2>
+                <p><strong>Lawyer:</strong></p>
+                <pre class="text-sm whitespace-pre-wrap">
+{{ result.lawyer_output }}
+                </pre>
+            </div>
+        </div>
+
+        <!-- Final Judgment -->
+        <div class="bg-gray-800 p-6 rounded shadow mt-8">
+            <h2 class="text-xl font-bold mb-4">Final Judgment</h2>
+            <pre class="whitespace-pre-wrap">
+{{ result.final_judgment }}
+            </pre>
+        </div>
+
+        <!-- Guardrails -->
+        <div class="bg-gray-800 p-6 rounded shadow mt-8">
+            <h2 class="text-xl font-bold mb-4">Guardrail Report</h2>
+            <pre class="whitespace-pre-wrap">
+{{ result.guardrail_report }}
+            </pre>
+        </div>
+
+        {% endif %}
+
+    </div>
+
+</body>
+</html>

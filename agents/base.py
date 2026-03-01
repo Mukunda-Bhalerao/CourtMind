@@ -1,15 +1,4 @@
-from typing import Dict, List, Optional, Any, TypedDict, Literal
-from langgraph.graph import MessagesState
-
-class AgentState(MessagesState):
-    """State for each agent node in the graph"""
-    next: str  # Where to route to next
-    thought_step: Optional[int] = 0  # Current step in chain of thought
-    caller: Optional[str] = None  # Who called the agent
-    iteration_count: Optional[int] = 0  # Track debate iterations
-    initial_retrieval_done: Optional[bool] = False  # Track if initial document fetch is complete
-    retrieved_context: Optional[str] = ""  # Store retrieved legal context for all agents
-    retrieved_docs: Optional[List] = None  # Store actual document objects for verification
+from typing import Dict, List, Optional, Any
 
 
 def safe_get_content(obj, default: str = "") -> str:

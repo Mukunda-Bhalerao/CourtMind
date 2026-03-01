@@ -4,7 +4,7 @@ from langchain_core.messages import HumanMessage, SystemMessage
 from core.chroma_store import ChromaVectorStore
 from core.advanced_rag import RetrievalAugmentor
 from core.enhanced_rag_system import EnhancedRAGSystem
-from .base import AgentState, safe_get_content
+from .base import safe_get_content
 import os
 from dotenv import load_dotenv
 load_dotenv()
@@ -71,7 +71,7 @@ Burden of proof in criminal cases India
         enhanced_rag = EnhancedRAGSystem(base_retriever, documents)
         return enhanced_rag
 
-    async def process(self, state: AgentState) -> AgentState:
+    async def process(self, state: dict) -> dict:
         """Perform comprehensive initial document retrieval"""
         
         print("\n" + "="*60)
@@ -199,7 +199,7 @@ Proceeding to opening statements..."""
         context_parts.append("\n=== END OF LEGAL CONTEXT ===")
         return "\n".join(context_parts)
     
-    def _create_fallback_response(self, state: AgentState, case_description: str) -> AgentState:
+    def _create_fallback_response(self, state: dict, case_description: str) -> dict:
         """Create fallback response if retrieval fails"""
         fallback_queries = [
             "Indian Penal Code criminal law provisions",

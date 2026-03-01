@@ -3,7 +3,7 @@ Document Summarization Agent - Summarizes large legal documents before adding to
 """
 from typing import List, Dict, Any
 from langchain_core.messages import HumanMessage
-from .base import AgentState, safe_get_content
+from .base import safe_get_content
 import os
 from pathlib import Path
 

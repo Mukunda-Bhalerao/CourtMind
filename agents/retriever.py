@@ -5,7 +5,7 @@ from langchain.tools import BaseTool
 from pydantic import BaseModel, Field
 from core.chroma_store import ChromaVectorStore
 from core.advanced_rag import RetrievalAugmentor
-from .base import AgentState, safe_get_content
+from .base import safe_get_content
 from langchain_core.messages.utils import get_buffer_string
 import os
 from dotenv import load_dotenv
@@ -108,7 +108,7 @@ IMPORTANT: Be concise. Focus on accuracy over volume. Quality over quantity.
             "5. Provide verified response: Extract and provide ONLY information that is explicitly present in the retrieved documents. Include: (a) Query used (b) Exact excerpts with quotation marks (c) Source filename (d) Confidence level. If no relevant information found, state clearly: 'No relevant information found in database for [specific topic].' Do NOT fabricate or extrapolate beyond what's in the documents."
         ]
 
-    async def process(self, state: AgentState) -> AgentState:
+    async def process(self, state: dict) -> dict:
         """Process current state with advanced RAG and hallucination detection"""
         
         try:
@@ -276,7 +276,7 @@ REMINDER: Only provide information that is explicitly present in the retrieved d
             traceback.print_exc()
             return self._create_error_response(state, f"Retriever error: {str(e)}")
     
-    def _create_error_response(self, state: AgentState, error_message: str) -> AgentState:
+    def _create_error_response(self, state: dict, error_message: str) -> dict:
         """Create error response when retrieval fails"""
         return {
             "messages": [HumanMessage(content=f"Retrieval failed: {error_message}. Proceeding with available information.", name="retriever")],

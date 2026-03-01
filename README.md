@@ -1,474 +1,363 @@
-# CourtMind - AI Legal Courtroom Simulator
+# CourtMind
 
-AI-powered legal courtroom simulator using multi-agent orchestration with LangGraph. Simulates realistic trial proceedings with defense lawyers, prosecutors, and judges using advanced RAG for accurate legal reasoning.
-
----
-
-## How to Run
-
-### Environment Setup
-
-Before running the application, create a `.env` file in the project root with the following configuration:
-
-```bash
-# Ollama Configuration
-OLLAMA_MODEL=gpt-oss:120b-cloud
-
-# External APIs
-SERPER_API_KEY=your_serper_api_key_here
-KANOON_API_KEY=your_kanoon_api_key_here
-```
-
-**Important:** To use the `gpt-oss:120b-cloud` model:
-
-1. Visit **https://ollama.com/**
-2. Click **Sign In** and create an account or log in
-3. Open **Ollama Desktop** application
-4. Sign in to Ollama Desktop with your account credentials
-5. The cloud model will be accessible after authentication
-
-**API Keys:**
-
-- **SERPER_API_KEY**: Get your key from [Serper.dev](https://serper.dev/)
-- **KANOON_API_KEY**: Get your key from [Kanoon.com](https://kanoon.com/)
+Deterministic legal analysis engine with courtroom simulation. Zero LLM in the core — pure rule-based fact evaluation, burden-of-proof staging, multi-section auto-detection, and a simulation layer that produces lawyer arguments, three-judge panel deliberation, and structured judgments. **404 tests. No hallucination.**
 
 ---
 
-### Method 1: Using Batch Files (Recommended)
+## System Flow
 
-**First-time setup:**
-
-```bash
-setup.bat
+```
+                        ┌──────────────┐
+                        │  FactMatrix  │
+                        │  (user input)│
+                        └──────┬───────┘
+                               │
+                    ┌──────────▼───────────┐
+                    │  SectionAutoDetector  │
+                    │  Ranks all IPC sections│
+                    │  by combined score    │
+                    └──────────┬───────────┘
+                               │
+              ┌────────────────▼────────────────┐
+              │       EvaluationPipeline         │
+              │                                  │
+              │  StatuteEvaluator (302/304/420/323)│
+              │         ↓                        │
+              │  ExceptionEngine                 │
+              │         ↓                        │
+              │  BurdenEngine                    │
+              │         ↓                        │
+              │  EvidenceWeightEngine            │
+              │         ↓                        │
+              │  → CaseAnalysis (dict)           │
+              └────────────────┬────────────────┘
+                               │
+              ┌────────────────▼────────────────┐
+              │       Simulation Layer           │
+              │                                  │
+              │  LawyerAgent                     │
+              │         ↓                        │
+              │  3× JudgeAgent (panel)           │
+              │    textualist · evidence · burden │
+              │         ↓                        │
+              │  PanelEngine (majority vote)      │
+              │         ↓                        │
+              │  JudgmentWriter (narrative)       │
+              └────────────────┬────────────────┘
+                               │
+              ┌────────────────▼────────────────┐
+              │    SimulationGuardrails          │
+              │  Validates lawyer, judges,       │
+              │  judgment, citations vs          │
+              │  deterministic analysis          │
+              └────────────────┬────────────────┘
+                               │
+              ┌────────────────▼────────────────┐
+              │    ResearchAggregator            │
+              │  PrecedentEngine (Kanoon API)    │
+              │  ContextEngine (web search)      │
+              └────────────────┬────────────────┘
+                               │
+                        ┌──────▼───────┐
+                        │ Final Result │
+                        └──────────────┘
 ```
 
-Installs Python dependencies and sets up the environment.
+---
 
-**Launch the application:**
+## Quick Start
 
-```bash
-start_full_system.bat
-```
+### Prerequisites
 
-Opens two windows:
+- **Python 3.11+** ([download](https://www.python.org/))
+- No LLM required — core engine is fully deterministic
 
-- Backend API: http://localhost:8000
-- UI Interface: http://localhost:8501
-
-**UI-only launch** (if backend already running):
+### Setup
 
 ```bash
-run_enhanced_ui.bat
-```
+# Clone
+git clone <repo-url>
+cd CourtMind
 
-### Method 2: Manual Installation (If setup.bat is not used)
-
-#### Prerequisites
-
-Before starting, ensure you have:
-- **Python 3.9 or higher** installed ([Download](https://www.python.org/))
-- **Ollama** installed ([Download](https://ollama.com/download))
-
-#### Step 1: Verify Python Installation
-
-```bash
-python --version
-```
-
-Should display Python 3.9+. If not, install Python and add it to PATH.
-
-#### Step 2: Create Virtual Environment (Recommended)
-
-```bash
-# Create virtual environment
+# Virtual environment
 python -m venv venv
 
-# Activate it
-# On Windows:
-venv\Scripts\activate.bat
-# On Linux/Mac:
+# Activate
+# Windows:
+venv\Scripts\activate
+# Linux/Mac:
 source venv/bin/activate
-```
 
-#### Step 3: Upgrade pip
-
-```bash
-python -m pip install --upgrade pip
-```
-
-#### Step 4: Install Core Dependencies
-
-```bash
+# Install dependencies
 pip install -r requirements.txt
 ```
 
-This installs all necessary packages including Ollama, LangChain, FastAPI, Streamlit, and ChromaDB.
-
-#### Step 5: Install RAG Enhancement Dependencies
-
-For advanced hallucination detection and hybrid retrieval:
+### Run Tests (404 tests)
 
 ```bash
-pip install sentence-transformers rank-bm25 nltk scikit-learn
+python -m pytest tests/ -v
 ```
 
-**Note:** These are optional but highly recommended for better accuracy (70% less hallucinations).
-
-#### Step 6: Create Required Directories
+### Run Demo
 
 ```bash
-# On Windows:
-mkdir private_documents public_documents chroma_db
-
-# On Linux/Mac:
-mkdir -p private_documents public_documents chroma_db
+python demo_realistic_case.py
 ```
 
-- **private_documents/**: Store user-uploaded case files
-- **public_documents/**: Store legal corpus (IPC, case law)
-- **chroma_db/**: Vector database storage
+Builds a murder + self-defense case, runs the full pipeline, and prints:
+- Detected section, burden stage, confidence, evidence score
+- Lawyer prosecution/defense arguments
+- Three-judge panel deliberation and verdict
+- Final judgment narrative
+- Guardrail report (drift detection)
 
-#### Step 7: Configure Environment Variables
-
-Create a `.env` file in the project root:
+### Run Web UI
 
 ```bash
-# Ollama Configuration
-OLLAMA_MODEL=gpt-oss:120b-cloud
-OLLAMA_BASE_URL=https://cloud.ollamahub.com
-
-# External APIs
-SERPER_API_KEY=your_serper_api_key_here
-KANOON_API_KEY=your_kanoon_api_key_here
+cd court_mind_web
+pip install -r requirements.txt
+uvicorn main:app --reload
 ```
 
-**Get API Keys:**
-- **SERPER_API_KEY**: [Serper.dev](https://serper.dev/)
-- **KANOON_API_KEY**: [Kanoon.com](https://kanoon.com/)
-
-#### Step 8: Install and Configure Ollama
-
-**Verify Ollama installation:**
-
-```bash
-ollama --version
-```
-
-If not installed, download from [ollama.com/download](https://ollama.com/download)
-
-**Download Required Models:**
-
-1. **Main LLM Model (gpt-oss:120b-cloud):**
-   
-   ```bash
-   ollama pull gpt-oss:120b-cloud
-   ```
-   
-   This is a large cloud-based model (~10-20 minutes download time). Requires signing into Ollama Desktop:
-   - Visit [ollama.com](https://ollama.com)
-   - Sign in or create an account
-   - Open Ollama Desktop and authenticate
-   - The cloud model becomes accessible
-
-2. **Embedding Model (nomic-embed-text):**
-   
-   ```bash
-   ollama pull nomic-embed-text
-   ```
-   
-   Smaller model for local embeddings (~1-2 minutes download).
-
-**Verify Models are Downloaded:**
-
-```bash
-ollama list
-```
-
-Should show both `gpt-oss:120b-cloud` and `nomic-embed-text`.
-
-#### Step 9: Add Legal Documents
-
-Add legal reference documents to `public_documents/` folder:
-- Indian Penal Code (IPC)
-- Case law precedents
-- Legal statutes
-
-**Note:** First run will index all documents (2-5 minutes). Subsequent runs use cached embeddings.
-
-#### Step 10: Launch Application
-
-**Start Backend:**
-
-```bash
-python app.py
-```
-
-Backend runs on http://localhost:8000
-
-**Start UI** (in a new terminal):
-
-```bash
-streamlit run interface\enhanced_stapp.py
-```
-
-UI runs on http://localhost:8501
+Open **http://127.0.0.1:8000** — enter victim/accused/evidence/exception narratives and hit **Run Simulation**.
 
 ---
 
-### Method 3: Quick Launch (After Initial Setup)
+## Supported IPC Sections
 
-**Step 1: Start the backend**
+| Section | Title | Required Elements |
+|---------|-------|-------------------|
+| **302 IPC** | Murder | death_of_human, act_by_accused, intention_or_knowledge, supporting_evidence (optional) |
+| **304 IPC** | Culpable Homicide not amounting to Murder | death_of_human, act_by_accused, knowledge_element |
+| **420 IPC** | Cheating | deception_element, inducement_element, gain_loss_element |
+| **323 IPC** | Voluntarily Causing Hurt | hurt_element, act_by_accused |
 
-```bash
-python app.py
-```
-
-**Step 2: Start the UI** (in a new terminal)
-
-```bash
-streamlit run interface\enhanced_stapp.py
-```
-
-### Method 4: Terminal Testing with `test_api_demo.py`
-
-**Test via command line without UI:**
-
-```bash
-# Terminal 1: Start backend
-python app.py
-
-# Terminal 2: Run test script
-python test_api_demo.py                # Uses sample_case.txt
-python test_api_demo.py your_case.txt  # Uses custom case file
-```
-
-**Script Features:**
-
-- **Color-coded output** - Different colors for each agent type
-- Lawyer (Blue), Prosecutor (Red), Judge (Yellow), Verdict (Green)
-- **Real-time progress tracking** - Shows iteration flow and timing
-- **Live streaming** - SSE streaming from backend API
-- **Full agent outputs** - Displays complete arguments and reasoning
-- **Detailed summary** - Statistics at completion (iterations, time, agents)
-- **Error handling** - Helpful hints if backend not running or timeouts
-- **Interruptible** - Graceful handling of Ctrl+C
-- **No UI needed** - Perfect for automated testing and CI/CD
-
----
-
-### Using the Application (UI)
-
-1. Open browser to **http://localhost:8501**
-2. Enter case details or upload documents (sample provided)
-3. Click ** Start Courtroom Simulation**
-4. Watch the live trial proceedings with real-time updates
-
----
-
-## Features
-
-### Core Capabilities
-
-- **Multi-Agent System**: Defense lawyer, prosecutor, and judge agents with distinct roles
-- **Realistic Trial Flow**: Opening statements → Arguments → Rebuttals → Verdict
-- **Citation Enforcement**: All legal claims must cite source documents ([IPC-1], [CAS-2])
-- **Hallucination Detection**: Verifies claims against retrieved legal context
-- **Real-Time UI**: Live metrics, timeline, and conversation display
-
-### Legal Research Integration
-
-- **Kanoon API**: Fetches relevant Indian legal cases automatically
-- **Document Summarization**: Processes large legal documents efficiently
-- **Web Search**: Retrieves additional legal information when needed
-- **Vector Database**: ChromaDB for fast legal document retrieval
-
-### Interactive Features
-
-- Upload private case files (PDFs, TXT, DOCX)
-- View public legal documents (IPC, case precedents)
-- Real-time simulation metrics (citations, confidence, iterations)
-- Timeline tracking of agent activities
-- Full conversation history with formatted legal arguments
+The `SectionRegistry` is extensible — add new sections by subclassing `StatuteEvaluator` and registering.
 
 ---
 
 ## Architecture
 
-### System Components
+### Layer 1 — Deterministic Core (`core/`)
 
-```
-┌─────────────────────────────────────────────────────────┐
-│                    Streamlit UI                         │
-│              (interface/enhanced_stapp.py)              │
-└─────────────────────────────────────────────────────────┘
-                          │
-                          ↓
-┌─────────────────────────────────────────────────────────┐
-│                   FastAPI Backend                       │
-│                    (app.py)                             │
-└─────────────────────────────────────────────────────────┘
-                          │
-                          ↓
-┌─────────────────────────────────────────────────────────┐
-│                 LangGraph Workflow                      │
-│                (core/workflow.py)                       │
-└─────────────────────────────────────────────────────────┘
-                          │
-         ┌────────────────┼────────────────┐
-         ↓                ↓                ↓
-    ┌────────┐      ┌──────────┐     ┌──────────┐
-    │ Lawyer │      │Prosecutor│     │  Judge   │
-    └────────┘      └──────────┘     └──────────┘
-         │                │                │
-         └────────────────┼────────────────┘
-                          ↓
-         ┌────────────────────────────────┐
-         │   Enhanced RAG System          │
-         │ (core/enhanced_rag_system.py)  │
-         └────────────────────────────────┘
-                          │
-         ┌────────────────┼────────────────┐
-         ↓                ↓                ↓
-    ┌─────────┐     ┌──────────┐    ┌──────────┐
-    │ChromaDB │     │  Kanoon  │    │   Web    │
-    │ Vector  │     │ API      │    │  Search  │
-    │  Store  │     │          │    │          │
-    └─────────┘     └──────────┘    └──────────┘
-```
+Zero LLM. Pure rule-based.
 
-### Agent Workflow
+| Module | Purpose |
+|--------|---------|
+| `fact_matrix.py` | Categorised fact storage (actus_reus, mens_rea, evidence, conflicts, exceptions_claimed) with dedup, severity, tags |
+| `ontology.py` | `LegalTag` enum, oppositional pairs, `SECTION_ELEMENT_ONTOLOGY` (section → element → tag-set), `EXCEPTION_NEGATION_MAP` |
+| `statute_engine.py` | `StatuteEvaluator` base class, `ElementSpec` matching (tags + keywords + severity), `IPC302Evaluator` |
+| `evaluators/` | `IPC304Evaluator`, `IPC420Evaluator`, `IPC323Evaluator` |
+| `section_registry.py` | Registry mapping section codes → evaluator instances |
+| `section_auto_detector.py` | Evaluates all registered sections, scores `combined = conf×0.6 + evidence×0.3 + burden_mult×0.1`, returns ranked list |
+| `burden_engine.py` | Burden-of-proof staging: prosecution_incomplete → reasonable_doubt → prima_facie_established → acquittal_recommended etc. |
+| `evidence_weight_engine.py` | Per-element and overall evidence scoring |
+| `exception_engine.py` | Detects claimed exceptions (self-defense, insanity, duress etc.), computes negated elements via `EXCEPTION_NEGATION_MAP` |
+| `evaluation_pipeline.py` | Chains evaluator → exception → burden → evidence_weight into a single `CaseAnalysis` |
+| `simulation_guardrails.py` | Validates simulation outputs against deterministic analysis — section match, element references, risk-level consistency, burden alignment, citation verification |
 
-```
-1. Kanoon Fetcher      → Retrieves relevant Indian legal cases
-2. Document Summarizer → Summarizes fetched documents
-3. Initial Retriever   → Comprehensive document retrieval with RAG
-4. Defense Lawyer      → Opening statement (with citations)
-5. Prosecutor         → Response to defense (with citations)
-6. Judge              → Evaluates arguments, routes next speaker
-7. [Repeat 4-6]       → Alternating debate until conclusion
-8. Verdict Agent      → Final verdict based on all arguments
-```
+### Layer 2 — Simulation (`simulation/`)
 
-### Key Technologies
+Deterministic-first courtroom simulation. No facts invented.
 
-- **LangGraph**: Multi-agent orchestration and state management
-- **LangChain**: Document processing and LLM integration
-- **FastAPI**: Async backend with SSE streaming
-- **Streamlit**: Interactive web interface
-- **ChromaDB**: Vector database for legal documents
-- **Groq/OpenAI/Ollama**: LLM providers for agent reasoning
+| Module | Purpose |
+|--------|---------|
+| `lawyer_agent.py` | Generates prosecution/defense arguments, risk assessment, weakness identification — all derived from `CaseAnalysis` fields |
+| `judge_agent.py` | Three judicial styles: textualist (element-by-element), evidence_focused (score-weighted), burden_strict (stage compliance) |
+| `panel_engine.py` | Runs 3-judge panel, computes majority verdict + vote split |
+| `judgment_writer.py` | Composes structured judgment narrative from analysis + panel result |
+| `run_simulation.py` | Entry point: `run_full_simulation(fact_matrix, auto_detect=True)` → returns case_analysis, lawyer_output, panel_result, final_judgment, guardrail_report, research_data |
+
+### Layer 3 — Research (`research/`)
+
+Optional enrichment. Safe no-op when API keys absent.
+
+| Module | Purpose |
+|--------|---------|
+| `precedent_engine.py` | Fetches case law from Indian Kanoon API |
+| `context_engine.py` | Web search for recent legal context |
+| `research_aggregator.py` | Combines precedents + context into enrichment payload |
+
+### Layer 4 — Web Interface (`court_mind_web/`)
+
+| Module | Purpose |
+|--------|---------|
+| `main.py` | FastAPI app — form input → FactMatrix → `run_full_simulation` → results page |
+| `templates/index.html` | Tailwind-styled courtroom UI with section detection, lawyer output, judgment, guardrails |
+| `static/styles.css` | Supplementary styles |
+
+### Legacy Layer (`agents/`, `interface/`, `app.py`)
+
+Original LLM-based multi-agent system (LangGraph + Ollama/Groq). Still functional but independent from the deterministic core.
 
 ---
 
-## Advanced RAG Techniques
+## How Auto-Detection Works
 
-### 1. Intelligent Chunking
+1. `SectionAutoDetector` iterates every section in `SectionRegistry`
+2. For each section, runs the full `EvaluationPipeline`
+3. Extracts `confidence_score`, `overall_evidence_score`, `burden_stage`
+4. Computes: **`combined_score = confidence × 0.6 + evidence × 0.3 + burden_multiplier × 0.1`**
+5. Filters out sections below threshold (0.25)
+6. Returns sorted list — top section used for simulation
 
-- Detects legal structure (IPC sections, case names, numbered lists)
-- Preserves section boundaries during chunking
-- No mid-section cuts that lose context
-- Semantic chunking with overlap for unstructured text
+Burden multipliers: `prima_facie_established=0.8`, `defense_rebuttal_required=0.5`, `exception_established=0.4`, `reasonable_doubt=0.3`, `manual_review_required=0.3`, `prosecution_incomplete=0.2`, `acquittal_recommended=0.1`
 
-### 2. Citation Enforcement
+---
 
-- Mandatory citation format: `[IPC-1]`, `[CAS-2]`, `[EVI-1]`
-- Automatic verification after each agent response
-- Citation density tracking and logging
-- Warnings for uncited claims
+## How Guardrails Work
 
-### 3. Hallucination Detection
+After the simulation layer produces outputs, `SimulationGuardrails` validates:
 
-- Extracts legal claims from agent responses
-- Verifies claims against retrieved context
-- Confidence scoring (e.g., "4/5 claims verified")
-- Real-time warnings for unsupported arguments
+| Check | What it catches |
+|-------|-----------------|
+| **Lawyer section match** | `confirmed_section` must equal the evaluated section |
+| **Alternate sections** | Must be subset of auto-detected sections |
+| **Prosecution references** | Can only cite satisfied elements |
+| **Defense references** | Can only cite failed/conflicted/partial elements or supported exceptions |
+| **Risk-level alignment** | Must correlate with confidence score |
+| **Judge verdict alignment** | Cannot convict if burden is `prosecution_incomplete` or `acquittal_recommended` |
+| **Judgment narrative** | Must mention correct section, must not claim conviction when acquittal is staged |
+| **Citation validity** | Case citations must exist in research data |
 
-### 4. Legal-Specific Re-Ranking
+Any violation is flagged in `guardrail_report["violations"]`. If violations exist, `simulation_drift_detected = True`.
 
-Document scoring by importance:
+---
 
-- IPC sections: 2.0x weight
-- Supreme Court cases: 2.5x weight
-- Case precedents: 1.8x weight
-- Evidence mentions: 1.6x weight
+## Environment Variables
 
-### 5. Structured Context Presentation
+Create `.env` in project root:
 
-Categorizes retrieved documents:
+```bash
+# Optional — only needed for research enrichment
+KANOON_API_KEY=your_kanoon_api_key
+SERPER_API_KEY=your_serper_api_key
 
-- IPC Sections
-- Case Precedents
-- Legal Principles
-- Evidence & Facts
-- Procedural Law
-
-Each document tagged with citation markers for easy reference.
-
-### 6. Intelligent Context Compression
-
-- Preserves IPC mentions (5.0x importance)
-- Preserves case citations (3.0x importance)
-- Compresses 18K+ → 15K max while retaining key legal citations
-- Extracts key points from lower-priority documents
-
-### RAG Pipeline Flow
-
+# Optional — only needed for legacy LLM-based agents
+OLLAMA_MODEL=gpt-oss:120b-cloud
 ```
-Query → Retrieval → Re-Ranking → Compression → Structuring → Verification
-   ↓         ↓           ↓            ↓            ↓             ↓
-Legal    Vector DB   Legal       Context      Categories    Citation
-Terms    Search      Scoring     Fitting      [IPC], [CAS]  Checking
-```
+
+The deterministic core needs **no API keys**. Research enrichment degrades gracefully to empty results when keys are absent.
 
 ---
 
 ## Project Structure
 
 ```
-law_courtroom_simulator/
-├── agents/                    # Agent implementations
-│   ├── lawyer.py             # Defense counsel
-│   ├── prosecutor.py         # Prosecution
-│   ├── judge.py              # Judge with routing logic
-│   ├── initial_retriever.py  # Enhanced RAG retrieval
-│   ├── verdict_agent.py      # Final verdict generation
-│   ├── kanoon_fetcher.py     # Case law fetching
-│   └── document_summarizer.py
-├── core/                      # Core system components
-│   ├── workflow.py           # LangGraph workflow
-│   ├── enhanced_rag_system.py # Advanced RAG implementation
-│   ├── chroma_store.py       # Vector database
-│   └── advanced_rag.py       # Additional RAG utilities
-├── interface/                 # UI components
-│   └── enhanced_stapp.py     # Streamlit interface
-├── public_documents/          # Legal document corpus
-│   └── indian_penal_code.txt
-├── private_documents/         # User-uploaded case files
-├── chroma_db/                # Vector database storage
-├── app.py                    # FastAPI backend
-├── test_api_demo.py          # Terminal testing script (no UI needed)
-├── requirements.txt          # Python dependencies
-├── sample_case.txt           # Example case file
-├── setup.bat                 # Automated setup
-├── start_full_system.bat     # Launch script (backend + UI)
-└── run_enhanced_ui.bat       # UI-only launch
+CourtMind/
+├── core/                          # Deterministic engine (zero LLM)
+│   ├── fact_matrix.py             # Fact storage, dedup, categories, severity
+│   ├── ontology.py                # LegalTag enum, section→element→tag mappings
+│   ├── statute_engine.py          # StatuteEvaluator base + IPC302Evaluator
+│   ├── evaluators/                # Additional IPC section evaluators
+│   │   ├── ipc304.py              # Culpable Homicide
+│   │   ├── ipc420.py              # Cheating
+│   │   └── ipc323.py              # Voluntarily Causing Hurt
+│   ├── section_registry.py        # Section code → evaluator registry
+│   ├── section_auto_detector.py   # Multi-section scoring and ranking
+│   ├── burden_engine.py           # Burden-of-proof staging
+│   ├── evidence_weight_engine.py  # Evidence scoring per element
+│   ├── exception_engine.py        # Exception detection + element negation
+│   ├── evaluation_pipeline.py     # Full pipeline → CaseAnalysis
+│   └── simulation_guardrails.py   # Output validation layer
+│
+├── simulation/                    # Courtroom simulation
+│   ├── lawyer_agent.py            # Prosecution + defense argument generation
+│   ├── judge_agent.py             # Three judicial styles
+│   ├── panel_engine.py            # 3-judge majority vote
+│   ├── judgment_writer.py         # Structured judgment narrative
+│   └── run_simulation.py          # Entry point: run_full_simulation()
+│
+├── research/                      # Optional enrichment
+│   ├── precedent_engine.py        # Indian Kanoon case law
+│   ├── context_engine.py          # Web search context
+│   └── research_aggregator.py     # Combined enrichment
+│
+├── court_mind_web/                # FastAPI web interface
+│   ├── main.py                    # Routes + FactMatrix builder
+│   ├── requirements.txt           # fastapi, uvicorn, jinja2, python-multipart
+│   ├── templates/index.html       # Tailwind courtroom UI
+│   └── static/styles.css
+│
+├── tests/                         # 404 tests
+│   ├── test_fact_matrix.py        # FactMatrix CRUD, dedup, conflicts
+│   ├── test_ontology.py           # Tag validation, oppositional pairs
+│   ├── test_statute_engine.py     # IPC302 evaluation scenarios
+│   ├── test_burden_engine.py      # Burden staging rules
+│   ├── test_evidence_weight_engine.py
+│   ├── test_exception_engine.py   # Exception detection + negation
+│   ├── test_evaluation_pipeline.py
+│   ├── test_section_registry.py
+│   ├── test_section_auto_detector.py
+│   ├── test_simulation_guardrails.py
+│   ├── test_research_layer.py
+│   ├── test_ipc_expansion.py      # 304/420/323 evaluators + integration
+│   └── test_stress_scenarios.py   # Cross-layer stability (5 scenarios)
+│
+├── agents/                        # Legacy LLM-based agents
+├── interface/                     # Legacy Streamlit UI
+├── app.py                         # Legacy FastAPI + LangGraph backend
+├── demo_realistic_case.py         # CLI demo script
+├── requirements.txt               # Python dependencies
+└── sample_case.txt                # Example case input
 ```
 
 ---
 
-### LLM Providers
+## Running the Full Pipeline in Code
 
-The system supports multiple LLM providers with automatic fallback:
+```python
+from core.fact_matrix import FactMatrix, FactSource, Severity
+from simulation.run_simulation import run_full_simulation
 
-- Groq (default)
-- OpenAI
-- Ollama (local/cloud)
+fm = FactMatrix()
 
-Configure via environment variables or modify `app.py`.
+fm.add_fact("actus_reus", "Accused stabbed the victim.",
+            FactSource.WITNESS, severity="high",
+            tags=["act_by_accused", "stabbing"])
 
-### Document Sources
+fm.add_fact("actus_reus", "Victim died from injuries.",
+            FactSource.FORENSIC, severity="critical",
+            tags=["death_caused"])
 
-- **Public**: Add legal documents to `public_documents/`
-- **Private**: Upload case-specific files via UI or add to `private_documents/`
-C o u r t M i n d  
- 
+fm.add_fact("mens_rea", "Accused planned the attack.",
+            FactSource.DOCUMENT, severity="high",
+            tags=["intention", "premeditated"])
+
+result = run_full_simulation(fm, auto_detect=True)
+
+print(result["case_analysis"]["evaluation_result"]["section"])   # "302 IPC"
+print(result["case_analysis"]["burden_result"]["burden_stage"])   # "prima_facie_established"
+print(result["panel_result"]["majority_verdict"])                 # "convict"
+print(result["guardrail_report"]["violations"])                   # []
+```
+
+---
+
+## Adding a New IPC Section
+
+1. **Ontology** — Add `LegalTag` members + `SECTION_ELEMENT_ONTOLOGY` entry in `core/ontology.py`
+2. **Evaluator** — Create `core/evaluators/ipc_XXX.py` subclassing `StatuteEvaluator` with `SECTION`, `SECTION_TITLE`, `ELEMENTS`
+3. **Registry** — Import and register in `core/section_registry.py`
+4. **Tests** — Add evaluator + auto-detection tests
+5. Run `python -m pytest tests/ -v` — must stay green
+
+---
+
+## Test Categories
+
+| Test File | Count | What it covers |
+|-----------|-------|----------------|
+| `test_fact_matrix.py` | ~50 | CRUD, dedup, conflict detection, bulk ops, export |
+| `test_ontology.py` | ~30 | Tag validation, oppositional pairs, section mappings |
+| `test_statute_engine.py` | ~15 | 302 evaluation: strong/weak/conflicted/exception cases |
+| `test_burden_engine.py` | ~40 | All burden stages, confidence scoring, exception handling |
+| `test_evidence_weight_engine.py` | ~20 | Per-element + overall scoring |
+| `test_exception_engine.py` | ~25 | Exception detection, negation, cross-section coverage |
+| `test_evaluation_pipeline.py` | ~30 | Pipeline integration, auto-detect routing |
+| `test_section_registry.py` | ~10 | Registration, lookup, listing |
+| `test_section_auto_detector.py` | ~25 | Scoring, ranking, threshold, multi-section |
+| `test_simulation_guardrails.py` | ~50 | All guardrail checks: section, element refs, risk, burden, judgment, citations |
+| `test_research_layer.py` | ~30 | Precedent + context + aggregator with mocked APIs |
+| `test_ipc_expansion.py` | 24 | 304/420/323 evaluators, auto-detection, simulation, guardrails, registry, integration |
+| `test_stress_scenarios.py` | 5 | Cross-layer: borderline 302/304, fraud+hurt, self-defense, weak evidence, multi-charge |

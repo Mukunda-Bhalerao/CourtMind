@@ -1,7 +1,7 @@
 import os
 import time
 from typing import Dict, Any, List, Optional
-from .base import AgentState, safe_get_content
+from .base import safe_get_content
 from .misc.filestorage import FileStorage
 from .misc.ik import IKApi
 import argparse
@@ -103,7 +103,7 @@ class FetchingAgent:
         # super().__init__(**kwargs)
 
     
-    async def process(self, state: AgentState) -> AgentState:
+    async def process(self, state: dict) -> dict:
         """Process current state with fetching-specific logic"""
         kanoon_api_key = os.getenv("KANOON_API_KEY")
         if not kanoon_api_key:
