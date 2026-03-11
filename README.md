@@ -1,6 +1,6 @@
 # CourtMind
 
-Deterministic legal analysis engine with courtroom simulation. Zero LLM in the core — pure rule-based fact evaluation, burden-of-proof staging, multi-section auto-detection, and a simulation layer that produces lawyer arguments, three-judge panel deliberation, and structured judgments. Supports **multi-hearing iterative simulation** with 8 judge feedback loops. **459 tests. No hallucination.**
+Deterministic legal analysis engine with courtroom simulation. Zero LLM in the core — pure rule-based fact evaluation, burden-of-proof staging, multi-section auto-detection, and a simulation layer that produces lawyer arguments, three-judge panel deliberation, and structured judgments. Supports **multi-hearing iterative simulation** with 8 judge feedback loops, **legal strategy analysis** (prosecution/defense strategies, weak element detection, evidence recommendations, risk classification), **simulation event timeline** for animated courtroom UI, and **optional LLM-powered case explanations** with deterministic fallback. **557 tests. No hallucination.**
 
 ---
 
@@ -58,6 +58,20 @@ Deterministic legal analysis engine with courtroom simulation. Zero LLM in the c
               │  ContextEngine (web search)      │
               └────────────────┬────────────────┘
                                │
+              ┌────────────────▼────────────────┐
+              │    Strategy + Explainability     │
+              │  StrategyEngine (deterministic)  │
+              │  ExplanationEngine (LLM opt.)    │
+              │  → StrategyReport + Narrative    │
+              └────────────────┬────────────────┘
+                               │
+              ┌────────────────▼────────────────┐
+              │  SimulationEventGenerator        │
+              │  Converts result → timeline     │
+              │  of structured courtroom events  │
+              │  → EventTimeline (for UI anim.)  │
+              └────────────────┬────────────────┘
+                               │
                         ┌──────▼───────┐
                         │ Final Result │
                         └──────────────┘
@@ -92,7 +106,7 @@ source venv/bin/activate
 pip install -r requirements.txt
 ```
 
-### Run Tests (459 tests)
+### Run Tests (557 tests)
 
 ```bash
 python -m pytest tests/ -v
@@ -166,7 +180,7 @@ Deterministic-first courtroom simulation. No facts invented.
 | `judge_agent.py` | Three judicial styles: textualist (element-by-element), evidence_focused (score-weighted), burden_strict (stage compliance) |
 | `panel_engine.py` | Runs 3-judge panel, computes majority verdict + vote split |
 | `judgment_writer.py` | Composes structured judgment narrative from analysis + panel result |
-| `run_simulation.py` | Entry point: `run_full_simulation(fact_matrix, auto_detect=True)` → returns case_analysis, lawyer_output, panel_result, final_judgment, guardrail_report, research_data |
+| `run_simulation.py` | Entry point: `run_full_simulation(fact_matrix, auto_detect=True)` → returns case_analysis, lawyer_output, panel_result, final_judgment, guardrail_report, research_data, strategy_report, explanation, simulation_events |
 
 ### Layer 3 — Research (`research/`)
 
@@ -185,6 +199,51 @@ Optional enrichment. Safe no-op when API keys absent.
 | `main.py` | FastAPI app — form input → FactMatrix → `run_full_simulation` → results page |
 | `templates/index.html` | Tailwind-styled courtroom UI with section detection, lawyer output, judgment, guardrails |
 | `static/styles.css` | Supplementary styles |
+
+### Layer 5 — Strategy + Explainability (`strategy/`)
+
+Deterministic strategy analysis with optional LLM explanation.
+
+| Module | Purpose |
+|--------|--------|
+| `strategy_models.py` | `WeakElement`, `StrongElement`, `StrategyReport` dataclasses with `to_dict()` / `to_json()` |
+| `strategy_engine.py` | Deterministic analysis: weak/strong element detection, prosecution/defense strategies, evidence recommendations, conviction probability, risk classification |
+| `explanation_engine.py` | Human-readable case explanation — deterministic fallback always available; optional Ollama LLM for richer narrative |
+
+**StrategyEngine** consumes `CaseAnalysis`, panel result, lawyer output, and guardrail report. It produces a `StrategyReport` with:
+- **Weak elements**: `not_satisfied`, `partial`, `conflicted` required elements
+- **Strong elements**: `satisfied` elements with score ≥ 0.7 or ≥ 2 supporting facts
+- **Prosecution strategy**: element-specific strengthening advice, motive suggestions, confidence warnings
+- **Defense strategy**: exploit weak elements, leverage exceptions, challenge evidence reliability
+- **Evidence recommendations**: element-specific templates (autopsy, CCTV, financial records, etc.)
+- **Conviction probability**: `confidence × 0.5 + evidence_score × 0.4 + burden_multiplier × 0.1`
+- **Risk level**: `high` (≥ 0.75), `moderate` (0.5–0.75), `low` (< 0.5)
+
+**ExplanationEngine** generates a structured narrative covering section analysis, evidence assessment, panel verdict, risk, and strategic recommendations. When `OLLAMA_MODEL` is set, attempts LLM-enhanced explanation; falls back to deterministic template on failure.
+
+### Layer 6 — Simulation Events (`simulation_events/`)
+
+Converts simulation results into a chronological event timeline for animated courtroom UI.
+
+| Module | Purpose |
+|--------|--------|
+| `event_models.py` | `EventType` enum (15 types), `Event` dataclass, `EventTimeline` container — all with `to_dict()` / `to_json()` |
+| `event_generator.py` | `SimulationEventGenerator` — reads simulation result and produces ordered events following courtroom flow |
+
+**Event types:** `CASE_START`, `VICTIM_STATEMENT`, `ACCUSED_STATEMENT`, `PROSECUTOR_ARGUMENT`, `DEFENSE_ARGUMENT`, `EVIDENCE_PRESENTED`, `JUDGE_QUESTION`, `JUDGE_THINKING`, `PANEL_DELIBERATION`, `JUDGE_VOTE`, `VERDICT_DELIVERED`, `STRATEGY_PRESENTED`, `EXPLANATION_DISPLAYED`, `HEARING_FEEDBACK`, `HEARING_UPDATE`
+
+**Actors:** `victim`, `accused`, `prosecutor`, `defense`, `textualist_judge`, `evidence_judge`, `burden_judge`, `panel`, `system`
+
+**Courtroom flow order:**
+```
+CASE_START → VICTIM_STATEMENT → ACCUSED_STATEMENT
+  → PROSECUTOR_ARGUMENT → DEFENSE_ARGUMENT → EVIDENCE_PRESENTED
+  → JUDGE_THINKING → PANEL_DELIBERATION → JUDGE_VOTE
+  → VERDICT_DELIVERED → STRATEGY_PRESENTED → EXPLANATION_DISPLAYED
+  [→ HEARING_FEEDBACK → HEARING_UPDATE]  (iterative mode)
+```
+
+Each event carries `event_id`, `event_type`, `actor`, `message`, `metadata`, and `timestamp` for UI animation timing. Supports both single-pass and multi-hearing result formats.
 
 ### Legacy Layer (`agents/`, `interface/`, `app.py`)
 
@@ -348,7 +407,7 @@ Create `.env` in project root:
 KANOON_API_KEY=your_kanoon_api_key
 SERPER_API_KEY=your_serper_api_key
 
-# Optional — only needed for legacy LLM-based agents
+# Optional — only needed for legacy LLM-based agents and ExplanationEngine LLM mode
 OLLAMA_MODEL=gpt-oss:120b-cloud
 ```
 
@@ -389,13 +448,22 @@ CourtMind/
 │   ├── context_engine.py          # Web search context
 │   └── research_aggregator.py     # Combined enrichment
 │
+├── strategy/                      # Strategy + Explainability layer
+│   ├── strategy_models.py         # WeakElement, StrongElement, StrategyReport
+│   ├── strategy_engine.py         # Deterministic strategy analysis
+│   └── explanation_engine.py      # Explanation with optional Ollama LLM
+│
+├── simulation_events/             # Event timeline for animated UI
+│   ├── event_models.py            # EventType enum, Event, EventTimeline
+│   └── event_generator.py         # SimulationEventGenerator
+│
 ├── court_mind_web/                # FastAPI web interface
 │   ├── main.py                    # Routes + FactMatrix builder
 │   ├── requirements.txt           # fastapi, uvicorn, jinja2, python-multipart
 │   ├── templates/index.html       # Tailwind courtroom UI
 │   └── static/styles.css
 │
-├── tests/                         # 459 tests
+├── tests/                         # 557 tests
 │   ├── test_fact_matrix.py        # FactMatrix CRUD, dedup, conflicts
 │   ├── test_ontology.py           # Tag validation, oppositional pairs
 │   ├── test_statute_engine.py     # IPC302 evaluation scenarios
@@ -409,7 +477,9 @@ CourtMind/
 │   ├── test_research_layer.py
 │   ├── test_ipc_expansion.py      # 304/420/323 evaluators + integration
 │   ├── test_stress_scenarios.py   # Cross-layer stability (5 scenarios)
-│   └── test_hearing_manager.py    # Multi-hearing cycle (55 tests)
+│   ├── test_hearing_manager.py    # Multi-hearing cycle (55 tests)
+│   ├── test_strategy_engine.py    # Strategy + explainability (52 tests)
+│   └── test_simulation_events.py  # Event timeline generation (46 tests)
 │
 ├── agents/                        # Legacy LLM-based agents
 ├── interface/                     # Legacy Streamlit UI
@@ -447,6 +517,15 @@ print(result["case_analysis"]["evaluation_result"]["section"])   # "302 IPC"
 print(result["case_analysis"]["burden_result"]["burden_stage"])   # "prima_facie_established"
 print(result["panel_result"]["majority_verdict"])                 # "convict"
 print(result["guardrail_report"]["violations"])                   # []
+print(result["strategy_report"]["risk_level"])                   # "high"
+print(result["strategy_report"]["conviction_probability_estimate"])  # 0.76
+print(result["explanation"][:80])                                  # "## Case Analysis — IPC Section 302 IPC ..."
+
+# Simulation events for animated UI
+events = result["simulation_events"]
+print(events["total_events"])                                      # 15+
+for ev in events["events"][:3]:
+    print(f"  {ev['event_type']:25s} {ev['actor']:12s} {ev['message'][:50]}")
 ```
 
 ---

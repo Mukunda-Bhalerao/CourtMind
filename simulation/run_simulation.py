@@ -38,6 +38,9 @@ from simulation.judge_agent import JudgeAgent
 from simulation.judgment_writer import JudgmentWriter
 from simulation.lawyer_agent import LawyerAgent
 from simulation.panel_engine import PanelEngine
+from simulation_events.event_generator import SimulationEventGenerator
+from strategy.explanation_engine import ExplanationEngine
+from strategy.strategy_engine import StrategyEngine
 
 
 def run_full_simulation(
@@ -151,23 +154,42 @@ def run_full_simulation(
     all_violations.extend(citation_report["violations"])
 
     # 7. Assemble result
+    guardrail_report = {
+        "lawyer_valid": lawyer_valid,
+        "judge_validations": judge_validations,
+        "judgment_valid": judgment_valid,
+        "citation_valid": citation_valid,
+        "violations": all_violations,
+    }
+
+    # 8. Strategy + Explainability (deterministic — no LLM in engine)
+    strategy_engine = StrategyEngine()
+    strategy_report = strategy_engine.generate(
+        case_dict, panel_result, lawyer_output, guardrail_report,
+    )
+
+    explanation_engine = ExplanationEngine()
+    explanation = explanation_engine.generate_case_explanation(
+        case_dict, panel_result, strategy_report.to_dict(),
+    )
+
     result: Dict[str, Any] = {
         "case_analysis": case_dict,
         "lawyer_output": lawyer_output,
         "panel_result": panel_result,
         "final_judgment": final_judgment,
         "research_data": research_data,
-        "guardrail_report": {
-            "lawyer_valid": lawyer_valid,
-            "judge_validations": judge_validations,
-            "judgment_valid": judgment_valid,
-            "citation_valid": citation_valid,
-            "violations": all_violations,
-        },
+        "guardrail_report": guardrail_report,
+        "strategy_report": strategy_report.to_dict(),
+        "explanation": explanation,
     }
 
-    # 8. Flag simulation drift
+    # 9. Flag simulation drift
     if all_violations:
         result["simulation_drift_detected"] = True
+
+    # 10. Simulation events (for animated UI)
+    event_gen = SimulationEventGenerator()
+    result["simulation_events"] = event_gen.generate_events(result)
 
     return result
