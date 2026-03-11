@@ -45,6 +45,9 @@ def run_full_simulation(
     *,
     auto_detect: bool = True,
     research_aggregator: Optional[ResearchAggregator] = None,
+    iterative: bool = False,
+    max_hearings: int = 5,
+    fact_updater: Optional[Any] = None,
 ) -> Dict[str, Any]:
     """
     Execute the full CourtMind simulation pipeline.
@@ -58,15 +61,40 @@ def run_full_simulation(
     research_aggregator : ResearchAggregator | None
         If provided, runs precedent + context enrichment.  A default
         no-key (no-op) aggregator is used when ``None``.
+    iterative : bool
+        If ``True``, delegates to ``HearingManager`` for multi-hearing
+        simulation.  Default ``False`` preserves original single-pass
+        behaviour.
+    max_hearings : int
+        Maximum hearing rounds when *iterative* is ``True``.
+    fact_updater : callable | None
+        ``fn(fact_matrix, feedbacks) -> list[str]`` — callback for
+        supplying new facts between hearings (iterative mode only).
 
     Returns
     -------
     dict
-        Keys: ``case_analysis``, ``lawyer_output``, ``panel_result``,
+        Single-pass: ``case_analysis``, ``lawyer_output``, ``panel_result``,
         ``final_judgment``, ``research_data``, ``guardrail_report``.
+        Iterative: ``hearings``, ``final_result``, ``total_hearings``,
+        ``verdict_stable``, optionally ``sentencing``.
         If any critical violation is detected, ``simulation_drift_detected``
         is also set to ``True``.
     """
+    # ── Iterative mode: delegate to HearingManager ──────────────
+    if iterative:
+        from simulation.hearing_manager import HearingManager
+        manager = HearingManager(
+            max_hearings=max_hearings,
+            auto_detect=auto_detect,
+            research_aggregator=research_aggregator,
+        )
+        return manager.run_hearing_cycle(
+            fact_matrix,
+            fact_updater=fact_updater,
+        )
+
+    # ── Single-pass mode (original behaviour) ───────────────────
     guardrails = SimulationGuardrails()
     all_violations: List[str] = []
 

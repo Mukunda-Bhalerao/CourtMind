@@ -1,6 +1,6 @@
 # CourtMind
 
-Deterministic legal analysis engine with courtroom simulation. Zero LLM in the core — pure rule-based fact evaluation, burden-of-proof staging, multi-section auto-detection, and a simulation layer that produces lawyer arguments, three-judge panel deliberation, and structured judgments. **404 tests. No hallucination.**
+Deterministic legal analysis engine with courtroom simulation. Zero LLM in the core — pure rule-based fact evaluation, burden-of-proof staging, multi-section auto-detection, and a simulation layer that produces lawyer arguments, three-judge panel deliberation, and structured judgments. Supports **multi-hearing iterative simulation** with 8 judge feedback loops. **459 tests. No hallucination.**
 
 ---
 
@@ -92,7 +92,7 @@ source venv/bin/activate
 pip install -r requirements.txt
 ```
 
-### Run Tests (404 tests)
+### Run Tests (459 tests)
 
 ```bash
 python -m pytest tests/ -v
@@ -224,6 +224,121 @@ Any violation is flagged in `guardrail_report["violations"]`. If violations exis
 
 ---
 
+## Multi-Hearing Simulation Architecture
+
+The `HearingManager` orchestrates iterative hearing rounds where judges can request additional information before a final verdict.
+
+### Enabling Multi-Hearing Mode
+
+```python
+from core.fact_matrix import FactMatrix, FactSource
+from simulation.run_simulation import run_full_simulation
+
+fm = FactMatrix()
+# … populate facts …
+
+# Single-pass (default, backward-compatible):
+result = run_full_simulation(fm, auto_detect=True)
+
+# Multi-hearing (iterative):
+result = run_full_simulation(fm, auto_detect=True, iterative=True, max_hearings=5)
+```
+
+### Hearing Cycle
+
+```
+┌───────────────────────────────────┐
+│  Hearing #N                       │
+│                                   │
+│  1. EvaluationPipeline.run()      │
+│  2. LawyerAgent.generate()        │
+│  3. PanelEngine.conduct_panel()   │
+│  4. JudgmentWriter.compose()      │
+│  5. SimulationGuardrails          │
+│  6. collect_judge_feedback()      │
+│        │                          │
+│        ├──► feedback.requires_update?
+│        │    YES → apply updates → next hearing
+│        │    NO  → verdict stable → STOP
+│        │                          │
+│        └──► max_hearings reached? → STOP
+└───────────────────────────────────┘
+```
+
+### 8 Judge Feedback Loops
+
+| # | Type | Trigger | Action |
+|---|------|---------|--------|
+| 1 | **Evidence Expansion** | `evidence_score <= 0.6` | Request additional evidence facts |
+| 2 | **Clarification** | Element status is `partial` or `not_satisfied` | Request clarification for specific element |
+| 3 | **Exception Validation** | Exception claimed but `supported=False` | Request supporting evidence for exception |
+| 4 | **Section Re-evaluation** | Auto-detector suggests different section | Re-rank sections with new facts |
+| 5 | **Conflict Resolution** | FactMatrix has unresolved conflicts | Request clarifying evidence to resolve contradictions |
+| 6 | **Argument Refinement** | Guardrail violations detected | LawyerAgent regenerates arguments |
+| 7 | **Precedent / Research** | Low confidence or ambiguous burden stage | ResearchAggregator fetches case law |
+| 8 | **Sentencing Phase** | `majority_verdict == "convict"` | Compute sentencing recommendation |
+
+### Providing a Fact Updater
+
+To supply new facts between hearings, pass a `fact_updater` callback:
+
+```python
+def my_updater(fact_matrix, feedbacks):
+    updates = []
+    for fb in feedbacks:
+        if fb.type == "evidence_request":
+            fact_matrix.add_fact("evidence", "New forensic report.",
+                                FactSource.FORENSIC, severity="high",
+                                tags=["physical_evidence"])
+            updates.append("Added forensic report")
+    return updates
+
+result = run_full_simulation(
+    fm, auto_detect=True, iterative=True,
+    max_hearings=5, fact_updater=my_updater,
+)
+```
+
+### Stop Conditions
+
+The hearing loop terminates when:
+- **Verdict stable** — same verdict in consecutive hearings
+- **No pending updates** — all feedback resolved
+- **Max hearings reached** — hard limit (default 5)
+
+### Output Format
+
+```python
+{
+    "hearings": [
+        {
+            "hearing_number": 1,
+            "case_analysis": {...},
+            "lawyer_output": {...},
+            "panel_result": {...},
+            "final_judgment": "...",
+            "feedback": [{"type": "evidence_request", ...}],
+            "updates_applied": ["Added forensic report"],
+            "research_data": {...},
+            "guardrail_report": {...},
+        },
+        # … more hearings …
+    ],
+    "final_result": {...},       # Last hearing's full simulation result
+    "total_hearings": 2,
+    "verdict_stable": True,
+    "sentencing": {              # Only if verdict == "convict"
+        "section": "302 IPC",
+        "max_fact_severity": "critical",
+        "aggravating_factors": [...],
+        "mitigating_factors": [...],
+        "sentence_recommendation": "life imprisonment or 14–20 years ...",
+    },
+}
+```
+
+---
+
 ## Environment Variables
 
 Create `.env` in project root:
@@ -266,6 +381,7 @@ CourtMind/
 │   ├── judge_agent.py             # Three judicial styles
 │   ├── panel_engine.py            # 3-judge majority vote
 │   ├── judgment_writer.py         # Structured judgment narrative
+│   ├── hearing_manager.py         # Multi-hearing iterative orchestration
 │   └── run_simulation.py          # Entry point: run_full_simulation()
 │
 ├── research/                      # Optional enrichment
@@ -279,7 +395,7 @@ CourtMind/
 │   ├── templates/index.html       # Tailwind courtroom UI
 │   └── static/styles.css
 │
-├── tests/                         # 404 tests
+├── tests/                         # 459 tests
 │   ├── test_fact_matrix.py        # FactMatrix CRUD, dedup, conflicts
 │   ├── test_ontology.py           # Tag validation, oppositional pairs
 │   ├── test_statute_engine.py     # IPC302 evaluation scenarios
@@ -292,7 +408,8 @@ CourtMind/
 │   ├── test_simulation_guardrails.py
 │   ├── test_research_layer.py
 │   ├── test_ipc_expansion.py      # 304/420/323 evaluators + integration
-│   └── test_stress_scenarios.py   # Cross-layer stability (5 scenarios)
+│   ├── test_stress_scenarios.py   # Cross-layer stability (5 scenarios)
+│   └── test_hearing_manager.py    # Multi-hearing cycle (55 tests)
 │
 ├── agents/                        # Legacy LLM-based agents
 ├── interface/                     # Legacy Streamlit UI
@@ -361,3 +478,4 @@ print(result["guardrail_report"]["violations"])                   # []
 | `test_research_layer.py` | ~30 | Precedent + context + aggregator with mocked APIs |
 | `test_ipc_expansion.py` | 24 | 304/420/323 evaluators, auto-detection, simulation, guardrails, registry, integration |
 | `test_stress_scenarios.py` | 5 | Cross-layer: borderline 302/304, fraud+hurt, self-defense, weak evidence, multi-charge |
+| `test_hearing_manager.py` | 55 | Data structures, feedback collection (8 loops), sentencing, hearing cycle integration, FactMatrix updates, backward compat, section ranking, end-to-end system, edge cases |

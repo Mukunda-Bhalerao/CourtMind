@@ -1,6 +1,5 @@
-"""Core components for the CourtMind Legal RAG system"""
+"""Core components for the CourtMind deterministic legal analysis engine"""
 
-from .chroma_store import ChromaVectorStore
 from .ontology import (
     LegalTag,
     OPPOSITIONAL_TAG_PAIRS,
@@ -36,7 +35,6 @@ from .section_registry import SectionRegistry, registry
 from .section_auto_detector import SectionAutoDetector, DetectionResult, DetectedSection
 
 __all__ = [
-    'ChromaVectorStore',
     'LegalTag',
     'OPPOSITIONAL_TAG_PAIRS',
     'OPPOSITION_MAP',
