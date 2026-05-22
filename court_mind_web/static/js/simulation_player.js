@@ -79,6 +79,7 @@
         eventCounter.textContent = `0 / ${events.length}`;
         statusBadge.textContent  = "Ready";
         setAllIdle();
+        renderUploadedEvidence();
         bindControls();
     }
 
@@ -339,6 +340,25 @@
 
       try {
 
+        // Uploaded Evidence Metadata
+        if (Array.isArray(r.uploaded_evidence) && r.uploaded_evidence.length) {
+            const rows = r.uploaded_evidence.map(file => `
+                <tr class="border-b border-gray-700">
+                    <td class="py-1 px-2">${esc(file.filename || '')}</td>
+                    <td class="py-1 px-2">${esc(file.file_type || 'unknown')}</td>
+                </tr>
+            `).join('');
+            html += section("Uploaded Evidence", `
+                <table class="w-full text-sm">
+                    <thead><tr class="text-gray-400 border-b border-gray-600">
+                        <th class="text-left py-1 px-2">Filename</th>
+                        <th class="text-left py-1 px-2">File Type</th>
+                    </tr></thead>
+                    <tbody>${rows}</tbody>
+                </table>
+            `);
+        }
+
         // Element Status Panel
         if (r.case_analysis && r.case_analysis.evaluation_result) {
             const er = r.case_analysis.evaluation_result;
@@ -524,6 +544,23 @@
         if (log) log.innerHTML = "";
         const board = $("#evidence-board");
         if (board) board.innerHTML = "";
+        renderUploadedEvidence();
+    }
+
+    function renderUploadedEvidence() {
+        const board = $("#evidence-board");
+        if (!board) return;
+        const r = (typeof CASE_RESULT !== "undefined") ? CASE_RESULT : {};
+        const uploaded = Array.isArray(r.uploaded_evidence) ? r.uploaded_evidence : [];
+
+        uploaded.forEach(file => {
+            const card = document.createElement("div");
+            card.className = "evidence-card bg-gray-700 rounded p-2 text-xs";
+            const name = file.filename || "Unnamed evidence";
+            const type = file.file_type || "unknown";
+            card.textContent = `${name} (${type})`;
+            board.appendChild(card);
+        });
     }
 
     // ── Boot ────────────────────────────────────────────────────

@@ -59,6 +59,17 @@
                         class="w-full p-4 bg-gray-700 rounded-lg border border-gray-600 focus:border-blue-500 focus:outline-none resize-y"></textarea>
                 </div>
 
+                <!-- Evidence Attachments -->
+                <div class="bg-gray-800 p-6 rounded-xl shadow-lg">
+                    <label class="block text-lg font-semibold mb-2">Evidence Attachments</label>
+                    <p class="text-gray-400 text-sm mb-3">
+                        Optional: images, videos, or PDF files. File contents are not analyzed.
+                    </p>
+                    <input type="file" name="evidence_files" id="evidence-files-input" accept="image/*,video/*,.pdf,application/pdf"
+                        multiple class="block w-full text-sm text-gray-300 file:mr-4 file:rounded-lg file:border-0 file:bg-gray-700 file:px-4 file:py-2 file:text-gray-200 hover:file:bg-gray-600">
+                    <div id="evidence-file-list" class="text-sm text-gray-400 mt-3"></div>
+                </div>
+
                 <!-- Analyze Button -->
                 <button type="submit" id="btn-analyze"
                     class="w-full bg-blue-600 hover:bg-blue-700 px-6 py-4 rounded-xl font-bold text-xl transition shadow-lg">
@@ -85,6 +96,8 @@
         const fileInput = document.getElementById("case-file-input");
         const fileLabel = document.getElementById("file-label");
         const caseText = document.getElementById("case-text-input");
+        const evidenceInput = document.getElementById("evidence-files-input");
+        const evidenceList = document.getElementById("evidence-file-list");
 
         fileInput.addEventListener("change", function () {
             if (this.files.length > 0) {
@@ -93,6 +106,20 @@
                     '<br><span class="text-sm text-gray-400">' +
                     (this.files[0].size / 1024).toFixed(1) + ' KB</span>';
             }
+        });
+
+        evidenceInput.addEventListener("change", function () {
+            evidenceList.innerHTML = "";
+            if (this.files.length === 0) return;
+
+            const list = document.createElement("ul");
+            list.className = "list-disc list-inside space-y-1";
+            Array.from(this.files).forEach(function (file) {
+                const item = document.createElement("li");
+                item.textContent = file.name + " (" + (file.type || "unknown") + ")";
+                list.appendChild(item);
+            });
+            evidenceList.appendChild(list);
         });
 
         // If user types text, remove file required

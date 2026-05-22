@@ -19,7 +19,7 @@ import os
 import sys
 import time
 from pathlib import Path
-from typing import Optional
+from typing import List, Optional
 
 # Ensure the project root is on sys.path so `core.*` / `simulation.*` resolve.
 _PROJECT_ROOT = str(Path(__file__).resolve().parent.parent)
@@ -49,6 +49,40 @@ app = FastAPI(title="CourtMind", version="2.0.0")
 app.mount("/static", StaticFiles(directory=str(Path(__file__).parent / "static")), name="static")
 templates = Jinja2Templates(directory=str(Path(__file__).parent / "templates"))
 
+IMAGE_EXTENSIONS = {".jpg", ".jpeg", ".png", ".gif", ".webp", ".bmp", ".tif", ".tiff"}
+VIDEO_EXTENSIONS = {".mp4", ".mov", ".avi", ".mkv", ".webm", ".mpeg", ".mpg"}
+
+
+def _file_type(upload: UploadFile) -> str:
+    """Return lightweight file type metadata without reading file contents."""
+    if upload.content_type:
+        return upload.content_type
+    return Path(upload.filename or "").suffix.lower().lstrip(".") or "unknown"
+
+
+def _is_allowed_evidence(upload: UploadFile) -> bool:
+    content_type = (upload.content_type or "").lower()
+    suffix = Path(upload.filename or "").suffix.lower()
+    return (
+        content_type.startswith("image/")
+        or content_type.startswith("video/")
+        or content_type == "application/pdf"
+        or suffix in IMAGE_EXTENSIONS
+        or suffix in VIDEO_EXTENSIONS
+        or suffix == ".pdf"
+    )
+
+
+def _evidence_metadata(files: Optional[List[UploadFile]]) -> List[dict]:
+    evidence = []
+    for upload in files or []:
+        if not upload.filename:
+            continue
+        if not _is_allowed_evidence(upload):
+            continue
+        evidence.append({"filename": upload.filename, "file_type": _file_type(upload)})
+    return evidence
+
 
 # ===============================
 # Research Aggregator (with API keys from env if available)
@@ -75,6 +109,7 @@ async def home(request: Request):
 async def analyze(
     request: Request,
     file: Optional[UploadFile] = File(None),
+    evidence_files: Optional[List[UploadFile]] = File(None),
     case_text: str = Form(""),
 ):
     """
@@ -84,6 +119,8 @@ async def analyze(
     takes priority).  Extracts facts, runs the full simulation pipeline,
     and returns the animated courtroom UI.
     """
+    evidence = _evidence_metadata(evidence_files)
+
     # 1. Get raw case text
     raw_text = ""
     if file and file.filename:
@@ -120,6 +157,7 @@ async def analyze(
     # 3. Run full simulation with research aggregator
     aggregator = _build_research_aggregator()
     result = run_full_simulation(fm, auto_detect=True, research_aggregator=aggregator)
+    result["uploaded_evidence"] = evidence
 
     # 4. Prepare JSON for animated courtroom UI
     sim_events = result.get("simulation_events", {"events": [], "total_events": 0})
@@ -172,6 +210,7 @@ async def simulate_legacy(
 
     aggregator = _build_research_aggregator()
     result = run_full_simulation(fm, auto_detect=True, research_aggregator=aggregator)
+    result["uploaded_evidence"] = []
 
     sim_events = result.get("simulation_events", {"events": [], "total_events": 0})
     events_json = json.dumps(sim_events, default=str, ensure_ascii=False)
