@@ -37,9 +37,9 @@ from court_mind_web.utils.file_parser import (
     UnsupportedFileType,
     parse_file,
 )
-from research.kanoon_client import KanoonClient
+from research.context_engine import ContextEngine
+from research.precedent_engine import PrecedentEngine
 from research.research_aggregator import ResearchAggregator
-from research.serper_client import SerperClient
 from simulation.run_simulation import run_full_simulation
 
 log = logging.getLogger(__name__)
@@ -48,6 +48,45 @@ app = FastAPI(title="CourtMind", version="2.0.0")
 
 app.mount("/static", StaticFiles(directory=str(Path(__file__).parent / "static")), name="static")
 templates = Jinja2Templates(directory=str(Path(__file__).parent / "templates"))
+# Disable template caching to avoid issues with unhashable globals in some Jinja2 versions
+try:
+    templates.env.cache_size = 0
+except Exception:
+    # best-effort: if attribute not present, leave defaults
+    pass
+try:
+    # Provide a safe cache mapping that tolerates unhashable keys by
+    # normalizing them to stable string representations. This prevents
+    # Jinja2 from raising "TypeError: unhashable type: 'dict'" when
+    # building cache keys that include dicts.
+    class _SafeTemplateCache(dict):
+        def _norm(self, key):
+            try:
+                hash(key)
+                return key
+            except Exception:
+                return repr(key)
+
+        def __getitem__(self, key):
+            return super().__getitem__(self._norm(key))
+
+        def __setitem__(self, key, value):
+            return super().__setitem__(self._norm(key), value)
+
+        def get(self, key, default=None):
+            return super().get(self._norm(key), default)
+
+    try:
+        # If Jinja2 has already created a Cache wrapper, replace its
+        # internal mapping so cache lookups use a tolerant mapping.
+        if hasattr(templates.env, "cache") and hasattr(templates.env.cache, "_mapping"):
+            templates.env.cache._mapping = _SafeTemplateCache()
+        else:
+            templates.env.cache = _SafeTemplateCache()
+    except Exception:
+        templates.env.cache = _SafeTemplateCache()
+except Exception:
+    pass
 
 IMAGE_EXTENSIONS = {".jpg", ".jpeg", ".png", ".gif", ".webp", ".bmp", ".tif", ".tiff"}
 VIDEO_EXTENSIONS = {".mp4", ".mov", ".avi", ".mkv", ".webm", ".mpeg", ".mpg"}
@@ -112,8 +151,8 @@ def _build_research_aggregator() -> ResearchAggregator:
     kanoon_key = os.environ.get("KANOON_API_KEY")
     serper_key = os.environ.get("SERPER_API_KEY")
     return ResearchAggregator(
-        serper_client=SerperClient(api_key=serper_key),
-        kanoon_client=KanoonClient(api_key=kanoon_key),
+        precedent_engine=PrecedentEngine(kanoon_api_key=kanoon_key),
+        context_engine=ContextEngine(serper_api_key=serper_key),
     )
 
 
@@ -121,12 +160,16 @@ def _fetch_display_research(result: dict, case_text: str) -> dict:
     """Fetch display-only research after deterministic simulation completes."""
     try:
         return _build_research_aggregator().enrich(
-            result.get("case_analysis", {}),
-            case_text=case_text,
+            result.get("case_analysis", {})
         )
     except Exception:
         log.warning("Display research failed", exc_info=True)
-        return ResearchAggregator.unavailable()
+        return {
+            "precedents": [],
+            "recent_context": [],
+            "available": False,
+            "message": "Research APIs unavailable."
+        }
 
 
 # ===============================
@@ -134,7 +177,14 @@ def _fetch_display_research(result: dict, case_text: str) -> dict:
 # ===============================
 @app.get("/", response_class=HTMLResponse)
 async def home(request: Request):
-    return templates.TemplateResponse("index.html", {"request": request})
+    # Serve the static index.html directly to avoid Jinja loader issues
+    try:
+        tmpl_path = Path(__file__).parent / "templates" / "index.html"
+        content = tmpl_path.read_text(encoding="utf-8")
+        return HTMLResponse(content, status_code=200)
+    except Exception:
+        # Fallback to TemplateResponse if direct file read fails
+        return templates.TemplateResponse("index.html", {"request": request})
 
 
 @app.post("/analyze", response_class=HTMLResponse)
@@ -187,7 +237,11 @@ async def analyze(
         fm = extract_facts_keyword_only(raw_text)
 
     # 3. Run full simulation. Research is fetched afterward for display only.
-    result = run_full_simulation(fm, auto_detect=True, research_aggregator=ResearchAggregator())
+    result = run_full_simulation(
+        fm,
+        auto_detect=True,
+        research_aggregator=_build_research_aggregator(),
+    )
     result["research_data"] = _fetch_display_research(result, raw_text)
     result["uploaded_evidence"] = evidence
 
@@ -240,7 +294,11 @@ async def simulate_legacy(
     if exceptions.strip():
         fm.add_fact("exceptions_claimed", exceptions, FactSource.USER_INPUT, severity="medium")
 
-    result = run_full_simulation(fm, auto_detect=True, research_aggregator=ResearchAggregator())
+    result = run_full_simulation(
+        fm,
+        auto_detect=True,
+        research_aggregator=_build_research_aggregator(),
+    )
     result["research_data"] = _fetch_display_research(result, " ".join([victim, accused, evidence, exceptions]))
     result["uploaded_evidence"] = []
 

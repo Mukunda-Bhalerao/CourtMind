@@ -1,12 +1,643 @@
 /* CourtMind — supplementary styles (Tailwind handles the bulk) */
 
+:root {
+    --court-ink: #f4e8cc;
+    --court-parchment: #e1cda1;
+    --court-parchment-deep: #c7ae7e;
+    --court-walnut: #261712;
+    --court-mahogany: #43271d;
+    --court-brown: #6d452b;
+    --court-bronze: #bc8b3d;
+    --court-gold: #e3c16f;
+    --court-ember: #7d1f19;
+    --court-shadow: rgba(0, 0, 0, 0.6);
+    --court-glow: rgba(227, 193, 111, 0.22);
+}
+
+html {
+    scroll-behavior: smooth;
+}
+
 body {
-    font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+    margin: 0;
+    font-family: 'Cormorant Garamond', serif;
+}
+
+body,
+.ancient-body {
+    color: var(--court-ink);
+    background:
+        radial-gradient(circle at 20% 15%, rgba(227, 193, 111, 0.12), transparent 26%),
+        radial-gradient(circle at 80% 12%, rgba(121, 63, 31, 0.18), transparent 24%),
+        radial-gradient(circle at 50% 80%, rgba(0, 0, 0, 0.2), transparent 36%),
+        linear-gradient(180deg, rgba(13, 8, 6, 0.86), rgba(6, 4, 3, 0.96)),
+        linear-gradient(135deg, #140d0a 0%, #251610 38%, #120b09 100%);
+    background-attachment: fixed;
+    min-height: 100vh;
+    position: relative;
+    overflow-x: hidden;
+}
+
+body::before,
+body::after {
+    content: "";
+    position: fixed;
+    inset: 0;
+    pointer-events: none;
+    z-index: 0;
+}
+
+body::before {
+    background:
+        radial-gradient(circle at 50% 18%, rgba(255, 227, 173, 0.16), transparent 16%),
+        radial-gradient(circle at 22% 20%, rgba(170, 110, 55, 0.18), transparent 24%),
+        radial-gradient(circle at 78% 20%, rgba(170, 110, 55, 0.18), transparent 24%),
+        linear-gradient(90deg, transparent 0 13%, rgba(0, 0, 0, 0.18) 14%, transparent 15% 35%, rgba(0, 0, 0, 0.18) 36%, transparent 37% 63%, rgba(0, 0, 0, 0.18) 64%, transparent 65% 85%, rgba(0, 0, 0, 0.18) 86%, transparent 87% 100%);
+    filter: blur(10px);
+    opacity: 0.55;
+}
+
+body::after {
+    background:
+        linear-gradient(180deg, rgba(0, 0, 0, 0.08), rgba(0, 0, 0, 0.28)),
+        repeating-linear-gradient(
+            135deg,
+            rgba(255, 255, 255, 0.02),
+            rgba(255, 255, 255, 0.02) 1px,
+            transparent 1px,
+            transparent 7px
+        );
+    opacity: 0.34;
+    mix-blend-mode: overlay;
+}
+
+body > * {
+    position: relative;
+    z-index: 1;
+}
+
+::selection {
+    background: rgba(227, 193, 111, 0.32);
+    color: #fff7df;
 }
 
 pre {
-    background-color: #1f2937;   /* gray-800 */
+    background-color: rgba(23, 14, 11, 0.9);
     padding: 1rem;
-    border-radius: 0.375rem;
+    border-radius: 0.75rem;
     overflow-x: auto;
+    border: 1px solid rgba(227, 193, 111, 0.28);
+    box-shadow: inset 0 0 20px rgba(0, 0, 0, 0.4);
+}
+
+/* HERO / HEADER */
+
+.royal-header,
+.court-topbar {
+    background:
+        linear-gradient(180deg, rgba(77, 48, 33, 0.96), rgba(33, 18, 13, 0.98));
+    border-bottom: 1px solid rgba(227, 193, 111, 0.58);
+    box-shadow:
+        0 12px 34px rgba(0, 0, 0, 0.58),
+        inset 0 -1px 0 rgba(255, 255, 255, 0.05),
+        inset 0 1px 0 rgba(255, 239, 196, 0.08);
+}
+
+.royal-header {
+    position: relative;
+    overflow: hidden;
+}
+
+.royal-header::before,
+.court-topbar::before {
+    content: "";
+    position: absolute;
+    inset: 0;
+    background:
+        radial-gradient(circle at center, rgba(255, 224, 169, 0.14), transparent 45%),
+        linear-gradient(90deg, transparent, rgba(255, 224, 169, 0.06), transparent);
+    pointer-events: none;
+}
+
+.royal-title {
+    font-family: 'Cinzel', serif;
+    color: #f6ddb0;
+    letter-spacing: 0.12em;
+    text-transform: uppercase;
+    text-shadow:
+        0 0 16px rgba(227, 193, 111, 0.35),
+        0 2px 6px rgba(0, 0, 0, 0.92);
+}
+
+.royal-subtitle {
+    color: #ddc7a5;
+    letter-spacing: 0.03em;
+    font-style: italic;
+}
+
+/* LAYOUT / PANELS */
+
+.court-stage,
+.court-ritual-form,
+.court-panel,
+.court-card,
+.court-scroll-panel,
+.parchment-panel,
+.royal-archive,
+.royal-chronicle {
+    position: relative;
+    overflow: hidden;
+    border: 1px solid rgba(227, 193, 111, 0.28);
+    box-shadow:
+        0 12px 36px var(--court-shadow),
+        inset 0 1px 0 rgba(255, 255, 255, 0.04),
+        inset 0 -1px 0 rgba(0, 0, 0, 0.25);
+    backdrop-filter: blur(14px) saturate(110%);
+}
+
+.court-panel,
+.court-card,
+.court-scroll-panel,
+.parchment-panel,
+.royal-archive,
+.royal-chronicle {
+    background:
+        linear-gradient(180deg, rgba(56, 31, 21, 0.9), rgba(30, 16, 12, 0.94));
+    border-radius: 1rem;
+    color: var(--court-ink);
+}
+
+.court-panel::before,
+.court-card::before,
+.court-scroll-panel::before,
+.parchment-panel::before,
+.royal-archive::before,
+.royal-chronicle::before,
+.court-ritual-form::before {
+    content: "";
+    position: absolute;
+    inset: 0;
+    background:
+        linear-gradient(135deg, rgba(255, 233, 189, 0.05), transparent 35%),
+        repeating-linear-gradient(
+            90deg,
+            rgba(255, 255, 255, 0.018),
+            rgba(255, 255, 255, 0.018) 1px,
+            transparent 1px,
+            transparent 7px
+        );
+    opacity: 0.85;
+    pointer-events: none;
+}
+
+.court-panel::after,
+.court-card::after,
+.court-scroll-panel::after,
+.parchment-panel::after,
+.royal-archive::after,
+.royal-chronicle::after,
+.court-ritual-form::after {
+    content: "";
+    position: absolute;
+    inset: 0;
+    pointer-events: none;
+    box-shadow:
+        inset 0 0 0 1px rgba(255, 234, 185, 0.05),
+        inset 0 0 28px rgba(0, 0, 0, 0.18);
+}
+
+.court-panel,
+.parchment-panel {
+    background:
+        linear-gradient(180deg, rgba(241, 227, 196, 0.96), rgba(214, 188, 143, 0.94));
+    color: #2a1a11;
+    border-color: rgba(139, 94, 52, 0.85);
+    box-shadow:
+        0 14px 34px rgba(0, 0, 0, 0.45),
+        inset 0 0 22px rgba(70, 40, 18, 0.08),
+        inset 0 1px 0 rgba(255, 246, 222, 0.6);
+}
+
+.court-panel h1,
+.court-panel h2,
+.court-panel h3,
+.court-panel h4,
+.parchment-panel h1,
+.parchment-panel h2,
+.parchment-panel h3,
+.parchment-panel h4 {
+    color: #3d2416;
+}
+
+.court-stage {
+    border-radius: 1.25rem;
+    background:
+        linear-gradient(180deg, rgba(27, 14, 10, 0.5), rgba(12, 7, 5, 0.28));
+    box-shadow:
+        0 24px 60px rgba(0, 0, 0, 0.38),
+        inset 0 0 0 1px rgba(255, 233, 185, 0.06);
+}
+
+.court-ritual-form {
+    padding: 1rem;
+    border-radius: 1.4rem;
+    background:
+        radial-gradient(circle at top, rgba(255, 226, 162, 0.06), transparent 36%),
+        linear-gradient(180deg, rgba(21, 12, 9, 0.78), rgba(12, 7, 5, 0.82));
+}
+
+.royal-archive,
+.royal-chronicle,
+.court-scroll-panel {
+    background:
+        linear-gradient(180deg, rgba(43, 24, 18, 0.94), rgba(23, 14, 11, 0.96));
+}
+
+.court-scroll-panel,
+.royal-archive,
+.royal-chronicle {
+    scrollbar-gutter: stable;
+}
+
+/* BUTTONS */
+
+.royal-button,
+.royal-button-primary,
+.royal-button-ghost,
+.royal-button-quiet {
+    border-radius: 0.9rem;
+    transition:
+        transform 0.25s ease,
+        box-shadow 0.25s ease,
+        border-color 0.25s ease,
+        background 0.25s ease,
+        color 0.25s ease;
+}
+
+.royal-button,
+.royal-button-primary {
+    background:
+        linear-gradient(180deg, #e1bc68 0%, #a66d2f 100%);
+    color: #fff6de !important;
+    border: 1px solid rgba(255, 231, 175, 0.7);
+    box-shadow:
+        0 10px 22px rgba(0, 0, 0, 0.44),
+        inset 0 1px 0 rgba(255, 255, 255, 0.2);
+}
+
+.royal-button:hover,
+.royal-button-primary:hover {
+    transform: translateY(-1px);
+    box-shadow:
+        0 14px 24px rgba(0, 0, 0, 0.52),
+        0 0 18px rgba(227, 193, 111, 0.3),
+        inset 0 1px 0 rgba(255, 255, 255, 0.2);
+}
+
+.royal-button-ghost,
+.royal-button-quiet {
+    background: linear-gradient(180deg, rgba(73, 46, 33, 0.96), rgba(39, 23, 17, 0.98));
+    color: var(--court-ink) !important;
+    border: 1px solid rgba(227, 193, 111, 0.24);
+    box-shadow:
+        0 8px 20px rgba(0, 0, 0, 0.32),
+        inset 0 1px 0 rgba(255, 255, 255, 0.05);
+}
+
+.royal-button-ghost:hover,
+.royal-button-quiet:hover {
+    border-color: rgba(227, 193, 111, 0.45);
+    box-shadow:
+        0 12px 22px rgba(0, 0, 0, 0.42),
+        0 0 12px rgba(227, 193, 111, 0.16);
+}
+
+/* INPUTS / FILE PICKERS */
+
+.royal-input,
+.royal-file-input,
+textarea.royal-input,
+input[type="file"].royal-file-input,
+select.royal-select {
+    background: rgba(20, 12, 9, 0.84) !important;
+    color: #f8ecd2 !important;
+    border: 1px solid rgba(227, 193, 111, 0.28) !important;
+    box-shadow: inset 0 1px 8px rgba(0, 0, 0, 0.35);
+}
+
+input[type="file"].royal-file-input::file-selector-button {
+    background: linear-gradient(180deg, #e1bc68 0%, #a66d2f 100%);
+    color: #fff6de;
+    border: 1px solid rgba(255, 231, 175, 0.7);
+    border-radius: 0.75rem;
+    padding: 0.6rem 1rem;
+    margin-right: 1rem;
+    box-shadow:
+        0 8px 18px rgba(0, 0, 0, 0.3),
+        inset 0 1px 0 rgba(255, 255, 255, 0.2);
+    cursor: pointer;
+    transition: transform 0.2s ease, box-shadow 0.2s ease;
+}
+
+input[type="file"].royal-file-input::file-selector-button:hover {
+    transform: translateY(-1px);
+    box-shadow:
+        0 12px 22px rgba(0, 0, 0, 0.38),
+        0 0 12px rgba(227, 193, 111, 0.16);
+}
+
+.royal-input::placeholder,
+textarea.royal-input::placeholder {
+    color: rgba(244, 232, 204, 0.52);
+}
+
+.royal-input:focus,
+.royal-file-input:focus,
+select.royal-select:focus,
+textarea.royal-input:focus {
+    outline: none;
+    border-color: rgba(227, 193, 111, 0.72) !important;
+    box-shadow:
+        0 0 0 3px rgba(227, 193, 111, 0.14),
+        inset 0 1px 8px rgba(0, 0, 0, 0.35);
+}
+
+.ancient-upload-box,
+.royal-file-drop {
+    background:
+        radial-gradient(circle at top, rgba(227, 193, 111, 0.16), transparent 28%),
+        linear-gradient(180deg, rgba(58, 38, 28, 0.92), rgba(28, 17, 12, 0.98));
+    border: 1px dashed rgba(227, 193, 111, 0.74);
+    color: #f8ecd2;
+    box-shadow:
+        inset 0 0 24px rgba(0, 0, 0, 0.28),
+        0 10px 28px rgba(0, 0, 0, 0.4);
+}
+
+.ancient-upload-box:hover,
+.royal-file-drop:hover {
+    transform: translateY(-1px);
+    border-color: rgba(255, 238, 191, 0.9);
+    box-shadow:
+        inset 0 0 24px rgba(0, 0, 0, 0.22),
+        0 14px 30px rgba(0, 0, 0, 0.48),
+        0 0 18px rgba(227, 193, 111, 0.16);
+}
+
+/* HEADINGS / LABELS */
+
+.ancient-heading,
+.royal-archive h3,
+.royal-chronicle h3,
+.court-panel label,
+.court-card h3,
+.court-card h2 {
+    font-family: 'Cinzel', serif;
+    color: #f3d99d;
+    letter-spacing: 0.05em;
+}
+
+.royal-header a,
+.royal-header a:hover,
+.court-topbar a,
+.court-topbar a:hover {
+    color: #f7dfaa;
+}
+
+.royal-header a:hover,
+.court-topbar a:hover {
+    text-shadow: 0 0 14px rgba(227, 193, 111, 0.2);
+}
+
+.royal-meta,
+.ancient-body .text-gray-400,
+.ancient-body .text-gray-500,
+.ancient-body .text-gray-300 {
+    color: rgba(244, 232, 204, 0.72) !important;
+}
+
+/* TAGS */
+
+.ancient-tag-red,
+.ancient-tag-orange,
+.ancient-tag-yellow,
+.ancient-tag-green {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.35rem;
+    border: 1px solid rgba(255, 235, 190, 0.16);
+    box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.08);
+}
+
+.ancient-tag-red {
+    background: rgba(110, 24, 20, 0.56);
+    color: #ffd0c9;
+}
+
+.ancient-tag-orange {
+    background: rgba(110, 60, 22, 0.56);
+    color: #ffd8a9;
+}
+
+.ancient-tag-yellow {
+    background: rgba(122, 96, 22, 0.56);
+    color: #fff1b6;
+}
+
+.ancient-tag-green {
+    background: rgba(20, 78, 39, 0.58);
+    color: #d5f3bc;
+}
+
+/* SPEECH BUBBLE */
+
+.speech-bubble {
+    position: relative;
+    background:
+        linear-gradient(180deg, rgba(247, 229, 191, 0.96), rgba(219, 193, 147, 0.94)) !important;
+    color: #2c1a11 !important;
+    border: 1px solid rgba(139, 94, 52, 0.85);
+    border-radius: 0.9rem;
+    box-shadow:
+        0 8px 20px rgba(0, 0, 0, 0.2),
+        inset 0 0 16px rgba(107, 68, 32, 0.06);
+    overflow: hidden;
+}
+
+.speech-bubble::before {
+    content: '';
+    position: absolute;
+    top: -8px;
+    left: 20px;
+    border-left: 8px solid transparent;
+    border-right: 8px solid transparent;
+    border-bottom: 8px solid rgba(219, 193, 147, 0.95);
+    filter: drop-shadow(0 -1px 0 rgba(139, 94, 52, 0.8));
+}
+
+.speech-bubble::after {
+    content: "";
+    position: absolute;
+    inset: 0;
+    background:
+        repeating-linear-gradient(
+            180deg,
+            rgba(255, 255, 255, 0.07),
+            rgba(255, 255, 255, 0.07) 1px,
+            transparent 1px,
+            transparent 8px
+        );
+    opacity: 0.34;
+    pointer-events: none;
+}
+
+/* EVIDENCE */
+
+.evidence-card {
+    animation: fadeSlideIn 0.4s ease;
+    background:
+        linear-gradient(180deg, rgba(241, 226, 189, 0.96), rgba(214, 186, 132, 0.95));
+    color: #2d1b11;
+    border-left: 5px solid #9a6a34;
+    border-radius: 0.85rem;
+    box-shadow:
+        0 8px 20px rgba(0, 0, 0, 0.22),
+        inset 0 0 20px rgba(100, 57, 21, 0.06);
+}
+
+/* TRANSCRIPT */
+
+.timeline-item {
+    transition: background 0.3s ease, border-color 0.3s ease, transform 0.3s ease;
+    border: 1px solid transparent;
+}
+
+.timeline-item.active {
+    background: rgba(153, 110, 58, 0.24) !important;
+    border-color: rgba(227, 193, 111, 0.22);
+    transform: translateX(2px);
+}
+
+.timeline-item.past {
+    opacity: 0.6;
+}
+
+/* STATES / BADGES / PROGRESS */
+
+.vote-badge {
+    display: inline-flex;
+    align-items: center;
+    padding: 0.2rem 0.7rem;
+    border-radius: 9999px;
+    font-weight: 700;
+    font-size: 0.72rem;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+    border: 1px solid rgba(255, 239, 196, 0.22);
+}
+
+.vote-guilty {
+    background: linear-gradient(180deg, #8d221b, #5d110d);
+    color: #ffe6dc;
+}
+
+.vote-not-guilty {
+    background: linear-gradient(180deg, #2f6a31, #18391d);
+    color: #efffe6;
+}
+
+.progress-track {
+    background: rgba(40, 24, 18, 0.86);
+    border-radius: 9999px;
+    height: 8px;
+    box-shadow: inset 0 1px 4px rgba(0, 0, 0, 0.5);
+}
+
+.progress-fill {
+    background:
+        linear-gradient(90deg, #7e4f24 0%, #be8d3f 36%, #f2d17b 100%);
+    height: 8px;
+    border-radius: 9999px;
+    transition: width 0.3s ease;
+    box-shadow: 0 0 18px rgba(227, 193, 111, 0.18);
+}
+
+/* VERDICT */
+
+#verdict-overlay {
+    backdrop-filter: blur(10px);
+    background: radial-gradient(circle at center, rgba(0, 0, 0, 0.72), rgba(0, 0, 0, 0.92));
+}
+
+#verdict-overlay .court-panel,
+#verdict-overlay .parchment-panel {
+    max-width: min(90vw, 42rem);
+}
+
+#verdict-gavel {
+    filter: drop-shadow(0 6px 12px rgba(0, 0, 0, 0.35));
+}
+
+/* SCROLLBAR */
+
+.custom-scroll::-webkit-scrollbar {
+    width: 8px;
+}
+
+.custom-scroll::-webkit-scrollbar-track {
+    background: rgba(25, 15, 11, 0.6);
+    border-radius: 999px;
+}
+
+.custom-scroll::-webkit-scrollbar-thumb {
+    background: linear-gradient(180deg, #8f6236, #5f381f);
+    border-radius: 999px;
+    border: 1px solid rgba(255, 235, 190, 0.1);
+}
+
+/* MOTION */
+
+@keyframes fadeSlideIn {
+    from {
+        opacity: 0;
+        transform: translateY(10px);
+    }
+    to {
+        opacity: 1;
+        transform: translateY(0);
+    }
+}
+
+@keyframes gavelStrike {
+    0%   { transform: rotate(0deg); }
+    30%  { transform: rotate(-30deg); }
+    60%  { transform: rotate(5deg); }
+    100% { transform: rotate(0deg); }
+}
+
+.gavel-anim {
+    animation: gavelStrike 0.6s ease;
+}
+
+@keyframes bounce {
+    0%, 80%, 100% { transform: translateY(0); }
+    40% { transform: translateY(-8px); }
+}
+
+.typing-dots span {
+    display: inline-block;
+    width: 8px;
+    height: 8px;
+    background: #f0cf7d;
+    border-radius: 50%;
+    margin: 0 2px;
+    animation: bounce 1.2s infinite;
+}
+
+.typing-dots span:nth-child(2) {
+    animation-delay: 0.2s;
+}
+
+.typing-dots span:nth-child(3) {
+    animation-delay: 0.4s;
 }

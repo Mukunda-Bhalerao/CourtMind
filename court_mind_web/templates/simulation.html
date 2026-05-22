@@ -7,6 +7,56 @@
     <script src="https://cdn.tailwindcss.com"></script>
     <link rel="stylesheet" href="/static/styles.css">
     <style>
+        body.ancient-body {
+            background:
+                radial-gradient(circle at 20% 15%, rgba(227, 193, 111, 0.12), transparent 26%),
+                radial-gradient(circle at 80% 12%, rgba(121, 63, 31, 0.18), transparent 24%),
+                linear-gradient(180deg, rgba(13, 8, 6, 0.86), rgba(6, 4, 3, 0.96)),
+                linear-gradient(135deg, #140d0a 0%, #251610 38%, #120b09 100%) !important;
+            color: #f4e8cc !important;
+        }
+
+        .court-card,
+        .royal-archive,
+        .royal-chronicle,
+        .court-scroll-panel,
+        .parchment-panel,
+        .court-panel {
+            background: linear-gradient(180deg, rgba(56, 31, 21, 0.96), rgba(30, 16, 12, 0.98)) !important;
+            border: 1px solid rgba(227, 193, 111, 0.28) !important;
+            color: #f4e8cc !important;
+            box-shadow:
+                0 12px 36px rgba(0, 0, 0, 0.6),
+                inset 0 1px 0 rgba(255, 255, 255, 0.04),
+                inset 0 -1px 0 rgba(0, 0, 0, 0.25) !important;
+        }
+
+        .court-panel.parchment-panel {
+            background: linear-gradient(180deg, rgba(241, 227, 196, 0.97), rgba(214, 188, 143, 0.95)) !important;
+            color: #2a1a11 !important;
+        }
+
+        .royal-header,
+        .court-topbar,
+        .court-stage,
+        .court-ritual-form {
+            background-color: transparent;
+        }
+
+        .royal-button-primary,
+        #btn-play,
+        #btn-replay {
+            background: linear-gradient(180deg, #e1bc68 0%, #a66d2f 100%) !important;
+            color: #fff6de !important;
+        }
+
+        .royal-button-ghost,
+        .royal-button-quiet {
+            background: linear-gradient(180deg, rgba(73, 46, 33, 0.98), rgba(39, 23, 17, 1)) !important;
+            color: #f4e8cc !important;
+        }
+    </style>
+    <style>
         /* Actor card states */
         .actor-card { transition: all 0.4s ease; border: 2px solid transparent; }
         .actor-card.speaking { border-color: #22d3ee; box-shadow: 0 0 20px rgba(34,211,238,0.4); }
@@ -79,19 +129,17 @@
     </style>
 </head>
 
-<body class="bg-gray-900 text-white min-h-screen flex flex-col">
-
+<body class="ancient-body min-h-screen flex flex-col">
     <!-- Top Status Bar -->
-    <div class="bg-gray-800 px-6 py-3 flex items-center justify-between shadow-lg">
-        <a href="/" class="text-lg font-bold hover:text-blue-400 transition">&#9878; CourtMind</a>
+<div class="royal-header court-topbar px-6 py-3 flex items-center justify-between shadow-2xl">        <a href="/" class="text-lg font-bold hover:text-amber-200 transition">&#9878; CourtMind</a>
         <div class="flex items-center gap-4">
-            <span id="status-badge" class="px-3 py-1 rounded-full text-sm font-semibold bg-blue-600">
+            <span id="status-badge" class="royal-button-quiet px-3 py-1 rounded-full text-sm font-semibold bg-amber-900">
                 Preparing
             </span>
             <span id="event-counter" class="text-gray-400 text-sm">0 / 0</span>
         </div>
         <div class="flex gap-2">
-            <button id="btn-back" class="bg-gray-700 hover:bg-gray-600 px-3 py-1 rounded text-sm"
+            <button id="btn-back" class="royal-button-ghost bg-gray-700 hover:bg-gray-600 px-3 py-1 rounded text-sm"
                     title="Back to Case Input">
                 &larr; Back
             </button>
@@ -104,13 +152,13 @@
     </div>
 
     <!-- Main Courtroom Layout -->
-    <div class="flex-1 grid grid-cols-12 gap-4 p-4 overflow-hidden" style="max-height: calc(100vh - 200px);">
+    <div class="court-stage flex-1 grid grid-cols-12 gap-4 p-4 overflow-hidden" style="max-height: calc(100vh - 200px);">
 
         <!-- LEFT COLUMN: Parties (victim + accused) -->
         <div class="col-span-3 flex flex-col gap-4">
 
             <!-- Victim Card -->
-            <div id="card-victim" class="actor-card bg-gray-800 rounded-lg p-4 idle">
+            <div id="card-victim" class="actor-card court-card court-panel rounded-lg p-4 idle">
                 <div class="flex items-center gap-3 mb-2">
                     <div class="w-10 h-10 rounded-full bg-red-700 flex items-center justify-center text-lg">&#128100;</div>
                     <div>
@@ -122,7 +170,7 @@
             </div>
 
             <!-- Accused Card -->
-            <div id="card-accused" class="actor-card bg-gray-800 rounded-lg p-4 idle">
+            <div id="card-accused" class="actor-card court-card rounded-lg p-4 idle">
                 <div class="flex items-center gap-3 mb-2">
                     <div class="w-10 h-10 rounded-full bg-orange-700 flex items-center justify-center text-lg">&#128113;</div>
                     <div>
@@ -134,8 +182,8 @@
             </div>
 
             <!-- Evidence Board -->
-            <div class="bg-gray-800 rounded-lg p-4 flex-1 overflow-y-auto custom-scroll">
-                <h3 class="font-bold mb-3">&#128196; Evidence Board</h3>
+            <div class="royal-archive bg-gray-800 rounded-lg p-4 flex-1 overflow-y-auto custom-scroll">
+                <h3 class="font-bold mb-3 ancient-heading">📜 Royal Evidence Archive</h3>
                 <div id="evidence-board" class="space-y-2 text-sm"></div>
             </div>
         </div>
@@ -145,9 +193,9 @@
 
             <div class="grid grid-cols-2 gap-4">
                 <!-- Prosecutor Card -->
-                <div id="card-prosecutor" class="actor-card bg-gray-800 rounded-lg p-4 idle">
+                <div id="card-prosecutor" class="actor-card court-card rounded-lg p-4 idle">
                     <div class="flex items-center gap-3 mb-2">
-                        <div class="w-10 h-10 rounded-full bg-blue-700 flex items-center justify-center text-lg">&#9878;</div>
+                        <div class="w-10 h-10 rounded-full bg-amber-800 flex items-center justify-center text-lg">&#9878;</div>
                         <div>
                             <h3 class="font-bold">Prosecutor</h3>
                             <span id="state-prosecutor" class="text-xs text-gray-400">Idle</span>
@@ -157,7 +205,7 @@
                 </div>
 
                 <!-- Defense Card -->
-                <div id="card-defense" class="actor-card bg-gray-800 rounded-lg p-4 idle">
+                <div id="card-defense" class="actor-card court-card rounded-lg p-4 idle">
                     <div class="flex items-center gap-3 mb-2">
                         <div class="w-10 h-10 rounded-full bg-green-700 flex items-center justify-center text-lg">&#128737;</div>
                         <div>
@@ -170,9 +218,8 @@
             </div>
 
             <!-- Live Event Log -->
-            <div class="bg-gray-800 rounded-lg p-4 flex-1 overflow-y-auto custom-scroll">
-                <h3 class="font-bold mb-3">&#128220; Courtroom Transcript</h3>
-                <div id="event-log" class="space-y-2 text-sm"></div>
+            <div class="royal-chronicle bg-gray-800 rounded-lg p-4 flex-1 overflow-y-auto custom-scroll">
+<h3 class="font-bold mb-3 ancient-heading">📖 Court Chronicles</h3>                <div id="event-log" class="space-y-2 text-sm"></div>
             </div>
         </div>
 
@@ -180,9 +227,9 @@
         <div class="col-span-3 flex flex-col gap-4">
 
             <!-- Judge: Textualist -->
-            <div id="card-textualist_judge" class="actor-card bg-gray-800 rounded-lg p-4 idle">
+            <div id="card-textualist_judge" class="actor-card court-card rounded-lg p-4 idle">
                 <div class="flex items-center gap-3 mb-2">
-                    <div class="w-10 h-10 rounded-full bg-purple-700 flex items-center justify-center text-lg">&#128214;</div>
+                    <div class="w-10 h-10 rounded-full bg-amber-900 flex items-center justify-center text-lg">&#128214;</div>
                     <div>
                         <h3 class="font-bold text-sm">Textualist Judge</h3>
                         <span id="state-textualist_judge" class="text-xs text-gray-400">Idle</span>
@@ -193,9 +240,9 @@
             </div>
 
             <!-- Judge: Evidence-Focused -->
-            <div id="card-evidence_judge" class="actor-card bg-gray-800 rounded-lg p-4 idle">
+            <div id="card-evidence_judge" class="actor-card court-card rounded-lg p-4 idle">
                 <div class="flex items-center gap-3 mb-2">
-                    <div class="w-10 h-10 rounded-full bg-indigo-700 flex items-center justify-center text-lg">&#128269;</div>
+                    <div class="w-10 h-10 rounded-full bg-yellow-900 flex items-center justify-center text-lg">&#128269;</div>
                     <div>
                         <h3 class="font-bold text-sm">Evidence Judge</h3>
                         <span id="state-evidence_judge" class="text-xs text-gray-400">Idle</span>
@@ -206,9 +253,9 @@
             </div>
 
             <!-- Judge: Burden-Strict -->
-            <div id="card-burden_judge" class="actor-card bg-gray-800 rounded-lg p-4 idle">
+            <div id="card-burden_judge" class="actor-card court-card rounded-lg p-4 idle">
                 <div class="flex items-center gap-3 mb-2">
-                    <div class="w-10 h-10 rounded-full bg-pink-700 flex items-center justify-center text-lg">&#9878;</div>
+                    <div class="w-10 h-10 rounded-full bg-red-900 flex items-center justify-center text-lg">&#9878;</div>
                     <div>
                         <h3 class="font-bold text-sm">Burden Judge</h3>
                         <span id="state-burden_judge" class="text-xs text-gray-400">Idle</span>
@@ -219,7 +266,7 @@
             </div>
 
             <!-- Panel / System -->
-            <div id="card-panel" class="actor-card bg-gray-800 rounded-lg p-4 idle flex-1">
+            <div id="card-panel" class="actor-card court-card rounded-lg p-4 idle flex-1">
                 <div class="flex items-center gap-3 mb-2">
                     <div class="w-10 h-10 rounded-full bg-gray-600 flex items-center justify-center text-lg">&#127981;</div>
                     <div>
@@ -233,16 +280,16 @@
     </div>
 
     <!-- Playback Controls -->
-    <div class="bg-gray-800 px-6 py-3 flex items-center justify-center gap-4 shadow-inner">
-        <button id="btn-restart" class="bg-gray-700 hover:bg-gray-600 px-4 py-2 rounded font-semibold"
+        <div class="court-scroll-panel bg-gray-800 px-6 py-3 flex items-center justify-center gap-4 shadow-inner">
+        <button id="btn-restart" class="royal-button-ghost bg-gray-700 hover:bg-gray-600 px-4 py-2 rounded font-semibold"
                 title="Restart">&#8635; Restart</button>
-        <button id="btn-prev" class="bg-gray-700 hover:bg-gray-600 px-4 py-2 rounded font-semibold"
+        <button id="btn-prev" class="royal-button-ghost bg-gray-700 hover:bg-gray-600 px-4 py-2 rounded font-semibold"
                 title="Previous">&laquo; Prev</button>
-        <button id="btn-play" class="bg-blue-600 hover:bg-blue-700 px-6 py-2 rounded font-bold text-lg"
+        <button id="btn-play" class="royal-button px-6 py-2 rounded font-bold text-lg"
                 title="Play / Pause">&#9654; Play</button>
-        <button id="btn-next" class="bg-gray-700 hover:bg-gray-600 px-4 py-2 rounded font-semibold"
+        <button id="btn-next" class="royal-button-ghost bg-gray-700 hover:bg-gray-600 px-4 py-2 rounded font-semibold"
                 title="Next">Next &raquo;</button>
-        <select id="speed-select" class="bg-gray-700 text-white px-3 py-2 rounded">
+        <select id="speed-select" class="royal-select bg-gray-700 text-white px-3 py-2 rounded">
             <option value="3000">Slow</option>
             <option value="1800" selected>Normal</option>
             <option value="800">Fast</option>
@@ -252,18 +299,18 @@
 
     <!-- Verdict Overlay (hidden initially) -->
     <div id="verdict-overlay" class="fixed inset-0 bg-black/80 flex items-center justify-center z-50 hidden">
-        <div class="bg-gray-800 rounded-2xl p-10 text-center max-w-lg mx-4 shadow-2xl">
+        <div class="court-panel parchment-panel rounded-2xl p-10 text-center max-w-lg mx-4 shadow-2xl">
             <div id="verdict-gavel" class="text-6xl mb-4">&#9878;</div>
             <h2 id="verdict-title" class="text-3xl font-bold mb-4"></h2>
             <p id="verdict-detail" class="text-gray-300 mb-6"></p>
             <div class="flex gap-4 justify-center">
-                <button id="btn-replay" class="bg-blue-600 hover:bg-blue-700 px-6 py-2 rounded font-bold">
+                <button id="btn-replay" class="royal-button royal-button-primary bg-amber-800 hover:bg-amber-700 px-6 py-2 rounded font-bold">
                     &#8635; Replay
                 </button>
-                <button id="btn-details" class="bg-gray-700 hover:bg-gray-600 px-6 py-2 rounded font-bold">
+                <button id="btn-details" class="royal-button-ghost bg-gray-700 hover:bg-gray-600 px-6 py-2 rounded font-bold">
                     &#128196; Full Report
                 </button>
-                <button id="btn-home" class="bg-gray-700 hover:bg-gray-600 px-6 py-2 rounded font-bold">
+                <button id="btn-home" class="royal-button-ghost bg-gray-700 hover:bg-gray-600 px-6 py-2 rounded font-bold">
                     &larr; New Case
                 </button>
             </div>
@@ -272,10 +319,10 @@
 
     <!-- Full Report Panel (hidden initially) -->
     <div id="report-panel" class="fixed inset-0 bg-black/80 z-50 hidden overflow-y-auto">
-        <div class="max-w-4xl mx-auto my-10 bg-gray-800 rounded-2xl p-8 shadow-2xl">
+        <div class="max-w-4xl mx-auto my-10 royal-archive bg-gray-800 rounded-2xl p-8 shadow-2xl">
             <div class="flex justify-between items-center mb-6">
                 <h2 class="text-2xl font-bold">&#128220; Full Case Report</h2>
-                <button id="btn-close-report" class="bg-gray-700 hover:bg-gray-600 px-4 py-2 rounded">
+                <button id="btn-close-report" class="royal-button-ghost bg-gray-700 hover:bg-gray-600 px-4 py-2 rounded">
                     &times; Close
                 </button>
             </div>

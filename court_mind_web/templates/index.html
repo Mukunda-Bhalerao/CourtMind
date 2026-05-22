@@ -6,35 +6,95 @@
     <title>CourtMind — AI Legal Courtroom Simulation</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <link rel="stylesheet" href="/static/styles.css">
+
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+
+<link href="https://fonts.googleapis.com/css2?family=Cinzel:wght@400;600;700&family=Cormorant+Garamond:wght@400;500;600&display=swap" rel="stylesheet">
+<style>
+    body.ancient-body {
+        background:
+            radial-gradient(circle at 20% 15%, rgba(227, 193, 111, 0.12), transparent 26%),
+            radial-gradient(circle at 80% 12%, rgba(121, 63, 31, 0.18), transparent 24%),
+            linear-gradient(180deg, rgba(13, 8, 6, 0.86), rgba(6, 4, 3, 0.96)),
+            linear-gradient(135deg, #140d0a 0%, #251610 38%, #120b09 100%) !important;
+        color: #f4e8cc !important;
+        min-height: 100vh;
+    }
+
+    .royal-header,
+    .court-stage,
+    .court-ritual-form,
+    .court-panel {
+        background-color: transparent;
+    }
+
+    .court-panel,
+    .parchment-panel {
+        background: linear-gradient(180deg, rgba(241, 227, 196, 0.97), rgba(214, 188, 143, 0.95)) !important;
+        border: 1px solid rgba(139, 94, 52, 0.9) !important;
+        color: #2a1a11 !important;
+        box-shadow:
+            0 14px 34px rgba(0, 0, 0, 0.48),
+            inset 0 0 22px rgba(70, 40, 18, 0.08),
+            inset 0 1px 0 rgba(255, 246, 222, 0.6) !important;
+    }
+
+    .royal-title {
+        color: #f6ddb0 !important;
+    }
+
+    .royal-button-primary,
+    #btn-analyze {
+        background: linear-gradient(180deg, #e1bc68 0%, #a66d2f 100%) !important;
+        color: #fff6de !important;
+        border-color: rgba(255, 231, 175, 0.7) !important;
+    }
+
+    .royal-file-drop,
+    .ancient-upload-box {
+        background: linear-gradient(180deg, rgba(58, 38, 28, 0.96), rgba(28, 17, 12, 0.98)) !important;
+        border-color: rgba(227, 193, 111, 0.74) !important;
+        color: #f8ecd2 !important;
+    }
+
+    .royal-input,
+    .royal-file-input,
+    textarea.royal-input,
+    select.royal-select {
+        background: rgba(20, 12, 9, 0.9) !important;
+        color: #f8ecd2 !important;
+        border-color: rgba(227, 193, 111, 0.28) !important;
+    }
+</style>
 </head>
 
-<body class="bg-gray-900 text-white min-h-screen flex flex-col">
+<body class="ancient-body min-h-screen flex flex-col">
 
     <!-- Header -->
-    <div class="bg-gray-800 p-6 shadow-lg">
-        <h1 class="text-3xl font-bold text-center">
-            &#9878; CourtMind &ndash; AI Legal Courtroom Simulation
-        </h1>
-        <p class="text-center text-gray-400 mt-2">
+    <div class="royal-header p-6 shadow-2xl">
+        <h1 class="text-4xl font-bold text-center royal-title">
+    ⚖ Royal Court of Justice
+</h1>
+        <p class="text-center royal-subtitle mt-2">
             Deterministic legal reasoning &bull; Agent-based simulation &bull; Indian Penal Code
         </p>
     </div>
 
-    <div class="flex-1 flex items-center justify-center p-8">
+    <div class="court-stage flex-1 flex items-center justify-center p-8 mx-4 my-6">
         <div class="w-full max-w-2xl">
 
-            <form id="case-form" method="post" action="/analyze" enctype="multipart/form-data" class="space-y-6">
+            <form id="case-form" method="post" action="/analyze" enctype="multipart/form-data" class="court-ritual-form space-y-6">
 
                 <!-- Upload Section -->
-                <div class="bg-gray-800 p-8 rounded-xl shadow-lg text-center">
+                <div class="court-panel p-8 rounded-xl shadow-lg text-center">
                     <div class="text-5xl mb-4">&#128221;</div>
                     <h2 class="text-2xl font-bold mb-2">Upload Case File</h2>
                     <p class="text-gray-400 mb-6">
                         Supported formats: <strong>.txt</strong>, <strong>.pdf</strong>, <strong>.docx</strong>
                     </p>
 
-                    <label class="block cursor-pointer bg-gray-700 hover:bg-gray-600 border-2 border-dashed border-gray-500 rounded-lg p-8 transition">
-                        <input type="file" name="file" id="case-file-input" accept=".txt,.pdf,.docx"
+<label class="block cursor-pointer ancient-upload-box royal-file-drop rounded-lg p-8 transition">                        <input type="file" name="file" id="case-file-input" accept=".txt,.pdf,.docx"
                             class="hidden" required>
                         <div id="file-label" class="text-gray-300">
                             <span class="text-4xl block mb-2">&#128194;</span>
@@ -53,26 +113,26 @@
                 </div>
 
                 <!-- Text Input Fallback -->
-                <div class="bg-gray-800 p-6 rounded-xl shadow-lg">
+                <div class="court-panel p-6 rounded-xl shadow-lg">
                     <label class="block text-lg font-semibold mb-2">Case Narrative</label>
                     <textarea name="case_text" id="case-text-input" rows="8" placeholder="Paste the full case narrative here..."
-                        class="w-full p-4 bg-gray-700 rounded-lg border border-gray-600 focus:border-blue-500 focus:outline-none resize-y"></textarea>
+                    class="royal-input w-full p-4 bg-gray-700 rounded-lg border border-gray-600 focus:border-amber-500 focus:outline-none resize-y"></textarea>
                 </div>
 
                 <!-- Evidence Attachments -->
-                <div class="bg-gray-800 p-6 rounded-xl shadow-lg">
+                <div class="court-panel p-6 rounded-xl shadow-lg">
                     <label class="block text-lg font-semibold mb-2">Evidence Attachments</label>
                     <p class="text-gray-400 text-sm mb-3">
                         Optional: images, videos, or PDF files. File contents are not analyzed.
                     </p>
                     <input type="file" name="evidence_files" id="evidence-files-input" accept="image/*,video/*,.pdf,application/pdf"
-                        multiple class="block w-full text-sm text-gray-300 file:mr-4 file:rounded-lg file:border-0 file:bg-gray-700 file:px-4 file:py-2 file:text-gray-200 hover:file:bg-gray-600">
+                        multiple class="royal-file-input block w-full text-sm text-gray-300 file:mr-4 file:rounded-lg file:border-0 file:bg-gray-700 file:px-4 file:py-2 file:text-gray-200 hover:file:bg-gray-600">
                     <div id="evidence-file-list" class="text-sm text-gray-400 mt-3"></div>
                 </div>
 
                 <!-- Analyze Button -->
                 <button type="submit" id="btn-analyze"
-                    class="w-full bg-blue-600 hover:bg-blue-700 px-6 py-4 rounded-xl font-bold text-xl transition shadow-lg">
+                    class="royal-button royal-button-primary w-full bg-amber-800 hover:bg-amber-700 px-6 py-4 rounded-xl font-bold text-xl transition shadow-lg">
                     &#9878; Analyze Case
                 </button>
             </form>
@@ -81,10 +141,10 @@
             <div class="mt-8 text-center">
                 <p class="text-gray-500 text-sm mb-3">Currently supported IPC sections:</p>
                 <div class="flex justify-center gap-3">
-                    <span class="bg-red-900/50 text-red-300 px-3 py-1 rounded-full text-sm">302 — Murder</span>
-                    <span class="bg-orange-900/50 text-orange-300 px-3 py-1 rounded-full text-sm">304 — Culpable Homicide</span>
-                    <span class="bg-yellow-900/50 text-yellow-300 px-3 py-1 rounded-full text-sm">420 — Cheating</span>
-                    <span class="bg-green-900/50 text-green-300 px-3 py-1 rounded-full text-sm">323 — Causing Hurt</span>
+                    <span class="ancient-tag-red px-3 py-1 rounded-full text-sm">302 — Murder</span>
+                    <span class="ancient-tag-orange px-3 py-1 rounded-full text-sm">304 — Culpable Homicide</span>
+                    <span class="ancient-tag-yellow px-3 py-1 rounded-full text-sm">420 — Cheating</span>
+                    <span class="ancient-tag-green px-3 py-1 rounded-full text-sm">323 — Causing Hurt</span>
                 </div>
             </div>
 
