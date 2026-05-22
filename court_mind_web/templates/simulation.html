@@ -152,7 +152,7 @@
     </div>
 
     <!-- Main Courtroom Layout -->
-    <div class="court-stage flex-1 grid grid-cols-12 gap-4 p-4 overflow-hidden" style="max-height: calc(100vh - 200px);">
+    <div class="court-stage flex-1 grid grid-cols-12 gap-4 p-4 overflow-y-auto pb-40">
 
         <!-- LEFT COLUMN: Parties (victim + accused) -->
         <div class="col-span-3 flex flex-col gap-4">
@@ -280,7 +280,7 @@
     </div>
 
     <!-- Playback Controls -->
-        <div class="court-scroll-panel bg-gray-800 px-6 py-3 flex items-center justify-center gap-4 shadow-inner">
+        <div class="court-scroll-panel bg-gray-800 px-6 py-3 flex items-center justify-center gap-4 shadow-inner sticky bottom-0 z-40">
         <button id="btn-restart" class="royal-button-ghost bg-gray-700 hover:bg-gray-600 px-4 py-2 rounded font-semibold"
                 title="Restart">&#8635; Restart</button>
         <button id="btn-prev" class="royal-button-ghost bg-gray-700 hover:bg-gray-600 px-4 py-2 rounded font-semibold"
@@ -289,11 +289,11 @@
                 title="Play / Pause">&#9654; Play</button>
         <button id="btn-next" class="royal-button-ghost bg-gray-700 hover:bg-gray-600 px-4 py-2 rounded font-semibold"
                 title="Next">Next &raquo;</button>
-        <select id="speed-select" class="royal-select bg-gray-700 text-white px-3 py-2 rounded">
-            <option value="3000">Slow</option>
-            <option value="1800" selected>Normal</option>
-            <option value="800">Fast</option>
-            <option value="300">Instant</option>
+        <select id="speed-select" class="royal-button-ghost bg-gray-700 hover:bg-gray-600 px-4 py-2 rounded font-semibold">
+            <option value="3000" class="text-gray-700">Slow</option>
+            <option value="1800" selected class="text-gray-700">Normal</option>
+            <option value="800"  class="text-gray-700">Fast</option>
+            <option value="300" class="text-gray-700">Instant</option>
         </select>
     </div>
 
@@ -302,7 +302,7 @@
         <div class="court-panel parchment-panel rounded-2xl p-10 text-center max-w-lg mx-4 shadow-2xl">
             <div id="verdict-gavel" class="text-6xl mb-4">&#9878;</div>
             <h2 id="verdict-title" class="text-3xl font-bold mb-4"></h2>
-            <p id="verdict-detail" class="text-gray-300 mb-6"></p>
+            <p id="verdict-detail" class="text-gray-700 mb-6"></p>
             <div class="flex gap-4 justify-center">
                 <button id="btn-replay" class="royal-button royal-button-primary bg-amber-800 hover:bg-amber-700 px-6 py-2 rounded font-bold">
                     &#8635; Replay

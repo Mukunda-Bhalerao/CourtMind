@@ -410,10 +410,10 @@ textarea.royal-input:focus {
 }
 
 .royal-meta,
-.ancient-body .text-gray-400,
+.ancient-body .text-gray-700,
 .ancient-body .text-gray-500,
 .ancient-body .text-gray-300 {
-    color: rgba(244, 232, 204, 0.72) !important;
+    color: rgba(0, 0, 0, 0.72) !important;
 }
 
 /* TAGS */
