@@ -37,9 +37,9 @@ from court_mind_web.utils.file_parser import (
     UnsupportedFileType,
     parse_file,
 )
-from research.context_engine import ContextEngine
-from research.precedent_engine import PrecedentEngine
+from research.kanoon_client import KanoonClient
 from research.research_aggregator import ResearchAggregator
+from research.serper_client import SerperClient
 from simulation.run_simulation import run_full_simulation
 
 log = logging.getLogger(__name__)
@@ -51,6 +51,26 @@ templates = Jinja2Templates(directory=str(Path(__file__).parent / "templates"))
 
 IMAGE_EXTENSIONS = {".jpg", ".jpeg", ".png", ".gif", ".webp", ".bmp", ".tif", ".tiff"}
 VIDEO_EXTENSIONS = {".mp4", ".mov", ".avi", ".mkv", ".webm", ".mpeg", ".mpg"}
+
+
+def _load_dotenv() -> None:
+    """Load simple KEY=VALUE pairs from the project .env when not already set."""
+    env_path = Path(_PROJECT_ROOT) / ".env"
+    if not env_path.exists():
+        return
+
+    for line in env_path.read_text(encoding="utf-8").splitlines():
+        line = line.strip()
+        if not line or line.startswith("#") or "=" not in line:
+            continue
+        key, value = line.split("=", 1)
+        key = key.strip()
+        value = value.strip().strip('"').strip("'")
+        if key and key not in os.environ:
+            os.environ[key] = value
+
+
+_load_dotenv()
 
 
 def _file_type(upload: UploadFile) -> str:
@@ -92,9 +112,21 @@ def _build_research_aggregator() -> ResearchAggregator:
     kanoon_key = os.environ.get("KANOON_API_KEY")
     serper_key = os.environ.get("SERPER_API_KEY")
     return ResearchAggregator(
-        precedent_engine=PrecedentEngine(kanoon_api_key=kanoon_key),
-        context_engine=ContextEngine(serper_api_key=serper_key),
+        serper_client=SerperClient(api_key=serper_key),
+        kanoon_client=KanoonClient(api_key=kanoon_key),
     )
+
+
+def _fetch_display_research(result: dict, case_text: str) -> dict:
+    """Fetch display-only research after deterministic simulation completes."""
+    try:
+        return _build_research_aggregator().enrich(
+            result.get("case_analysis", {}),
+            case_text=case_text,
+        )
+    except Exception:
+        log.warning("Display research failed", exc_info=True)
+        return ResearchAggregator.unavailable()
 
 
 # ===============================
@@ -154,9 +186,9 @@ async def analyze(
         log.warning("Fact extraction failed, using keyword fallback", exc_info=True)
         fm = extract_facts_keyword_only(raw_text)
 
-    # 3. Run full simulation with research aggregator
-    aggregator = _build_research_aggregator()
-    result = run_full_simulation(fm, auto_detect=True, research_aggregator=aggregator)
+    # 3. Run full simulation. Research is fetched afterward for display only.
+    result = run_full_simulation(fm, auto_detect=True, research_aggregator=ResearchAggregator())
+    result["research_data"] = _fetch_display_research(result, raw_text)
     result["uploaded_evidence"] = evidence
 
     # 4. Prepare JSON for animated courtroom UI
@@ -208,8 +240,8 @@ async def simulate_legacy(
     if exceptions.strip():
         fm.add_fact("exceptions_claimed", exceptions, FactSource.USER_INPUT, severity="medium")
 
-    aggregator = _build_research_aggregator()
-    result = run_full_simulation(fm, auto_detect=True, research_aggregator=aggregator)
+    result = run_full_simulation(fm, auto_detect=True, research_aggregator=ResearchAggregator())
+    result["research_data"] = _fetch_display_research(result, " ".join([victim, accused, evidence, exceptions]))
     result["uploaded_evidence"] = []
 
     sim_events = result.get("simulation_events", {"events": [], "total_events": 0})

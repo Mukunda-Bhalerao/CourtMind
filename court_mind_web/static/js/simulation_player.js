@@ -415,22 +415,29 @@
         if (r.research_data) {
             const rd = r.research_data;
             let resHtml = '';
-            if (rd.precedents && rd.precedents.length) {
-                resHtml += '<h4 class="font-semibold text-cyan-400 mb-1">Precedent Cases</h4><ul class="list-disc list-inside text-sm space-y-1">';
-                rd.precedents.forEach(p => {
-                    resHtml += '<li>' + esc(p.title || p.case_name || p.name || JSON.stringify(p)) + '</li>';
+            const researchItems = Array.isArray(rd.items) ? rd.items : []
+                .concat(rd.precedents || [])
+                .concat(rd.recent_context || rd.context || []);
+            if (researchItems.length) {
+                resHtml += '<div class="space-y-3">';
+                researchItems.forEach(item => {
+                    const title = item.title || item.case_name || item.name || 'Untitled reference';
+                    const source = item.source || item.court || 'Research';
+                    const snippet = item.snippet || item.summary || '';
+                    const link = item.link || item.url || '';
+                    resHtml += '<div class="bg-gray-800 rounded p-3">';
+                    resHtml += '<p class="font-semibold text-cyan-400">' + esc(title) + '</p>';
+                    resHtml += '<p class="text-xs text-gray-400 mt-1">' + esc(source) + '</p>';
+                    if (snippet) resHtml += '<p class="text-sm text-gray-300 mt-2">' + esc(snippet) + '</p>';
+                    if (link) {
+                        const safeLink = esc(link).replace(/"/g, '&quot;');
+                        resHtml += '<a class="text-blue-400 text-sm mt-2 inline-block hover:underline" target="_blank" rel="noopener noreferrer" href="' + safeLink + '">' + esc(link) + '</a>';
+                    }
+                    resHtml += '</div>';
                 });
-                resHtml += '</ul>';
+                resHtml += '</div>';
             }
-            if ((rd.context && rd.context.length) || (rd.recent_context && rd.recent_context.length)) {
-                const ctxItems = rd.recent_context || rd.context || [];
-                resHtml += '<h4 class="font-semibold text-cyan-400 mt-2 mb-1">Context / Web Results</h4><ul class="list-disc list-inside text-sm space-y-1">';
-                ctxItems.forEach(c => {
-                    resHtml += '<li>' + esc(c.title || c.snippet || JSON.stringify(c)) + '</li>';
-                });
-                resHtml += '</ul>';
-            }
-            if (!resHtml) resHtml = '<p class="text-gray-400 text-sm">No research data available (API keys not set).</p>';
+            if (!resHtml) resHtml = '<p class="text-gray-400 text-sm">' + esc(rd.message || 'Research APIs unavailable.') + '</p>';
             html += section("Research Results", resHtml);
         }
 
