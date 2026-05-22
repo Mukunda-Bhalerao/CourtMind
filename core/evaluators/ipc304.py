@@ -65,7 +65,10 @@ class IPC304Evaluator(StatuteEvaluator):
             match_keywords=(
                 "knew likely", "knowledge", "aware", "reckless",
                 "no intent to kill", "without intention", "not premeditated",
-                "likely to cause death",
+                "likely to cause death", "heat of passion", "heat of the moment",
+                "sudden", "impulsive", "single blow", "fight", "quarrel",
+                "provoked", "spontaneous", "unintentional", "accidental",
+                "negligent", "knew", "knowingly",
             ),
             min_severity=Severity.MEDIUM.value,
             required=True,

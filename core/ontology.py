@@ -213,6 +213,9 @@ _SECTION_ELEMENT_ONTOLOGY: Dict[str, Dict[str, FrozenSet[LegalTag]]] = {
         "knowledge_element": frozenset({
             LegalTag.KNOWLEDGE_LIKELY_DEATH,
             LegalTag.NO_INTENT_TO_KILL,
+            LegalTag.KNOWLEDGE,
+            LegalTag.SPONTANEOUS,
+            LegalTag.NEGLIGENT,
         }),
     },
 
@@ -234,9 +237,12 @@ _SECTION_ELEMENT_ONTOLOGY: Dict[str, Dict[str, FrozenSet[LegalTag]]] = {
     "323 IPC": {
         "hurt_element": frozenset({
             LegalTag.SIMPLE_HURT,
+            LegalTag.GRIEVOUS_HURT,
         }),
         "act_by_accused": frozenset({
             LegalTag.ACT_BY_ACCUSED,
+            LegalTag.ASSAULT,
+            LegalTag.VIOLENCE,
         }),
     },
 }

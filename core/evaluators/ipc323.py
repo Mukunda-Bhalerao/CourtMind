@@ -43,7 +43,9 @@ class IPC323Evaluator(StatuteEvaluator):
             match_keywords=(
                 "hurt", "injury", "bruise", "pain",
                 "slapped", "punched", "kicked", "scratched",
-                "minor injury", "bodily harm",
+                "minor injury", "bodily harm", "swelling",
+                "wound", "bleeding", "abrasion", "contusion",
+                "sore", "ache", "struck", "hit",
             ),
             min_severity=Severity.LOW.value,
             required=True,
@@ -56,7 +58,8 @@ class IPC323Evaluator(StatuteEvaluator):
             match_keywords=(
                 "accused", "defendant", "struck", "hit", "slapped",
                 "punched", "kicked", "pushed", "attacked", "assaulted",
-                "beat",
+                "beat", "threw", "shoved", "scratched", "grabbed",
+                "pulled hair", "bit",
             ),
             min_severity=Severity.LOW.value,
             required=True,

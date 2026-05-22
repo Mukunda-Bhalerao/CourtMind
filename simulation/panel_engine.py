@@ -124,10 +124,23 @@ class PanelEngine:
         if len(leaders) == 1:
             return leaders[0]
 
-        # Tie — break using confidence score.
+        # Full three-way split (each judge voted differently) —
+        # maximum disagreement means the case needs further review.
+        if len(counts) >= 3:
+            return "review"
+
+        # Two-way tie — break using confidence score.
         confidence = case_analysis.get("burden_result", {}).get(
             "confidence_score", 0.0
         )
+
+        # If exceptions are supported, lean away from conviction.
+        exception_result = case_analysis.get("exception_result", {})
+        if exception_result.get("exceptions_supported"):
+            if "acquit" in leaders:
+                return "acquit"
+            return "review"
+
         if confidence >= 0.7:
             return "convict"
         if confidence >= 0.4:

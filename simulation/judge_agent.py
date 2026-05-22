@@ -206,9 +206,25 @@ class JudgeAgent:
                 f"Lawyer identified {len(weaknesses)} weakness(es)."
             )
 
+        # Factor in exceptions — supported exceptions weaken the case.
+        exc_supported = exception_result.get("exceptions_supported", [])
+        negated_elements = exception_result.get("negated_elements", [])
+        if negated_elements:
+            concerns.append(
+                f"Exceptions negate element(s): {', '.join(negated_elements)}."
+            )
+
         if exception_result.get("fully_negated"):
             concerns.append("Exceptions fully negate required elements.")
             verdict = "acquit"
+        elif exc_supported:
+            # Supported exceptions demand caution — require higher bar.
+            if evidence_score >= 0.8 and confidence >= 0.8:
+                verdict = "convict"
+                reasoning.append("Despite exceptions, evidence is overwhelming.")
+            else:
+                verdict = "review"
+                reasoning.append("Supported exceptions require further review.")
         elif evidence_score >= 0.6 and confidence >= 0.6:
             verdict = "convict"
         elif evidence_score >= 0.4:

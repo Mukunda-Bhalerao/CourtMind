@@ -384,7 +384,7 @@ class TestJudgeVoteEvents:
         for ve in vote_events:
             assert "judge" in ve["metadata"]
             assert "vote" in ve["metadata"]
-            assert ve["metadata"]["vote"] in ("convict", "acquit", "review")
+            assert ve["metadata"]["vote"] in ("GUILTY", "NOT GUILTY", "NEEDS FURTHER REVIEW")
 
 
 class TestVerdictEvent:
@@ -402,9 +402,9 @@ class TestVerdictEvent:
         ]
         assert len(verdict_events) == 1
         md = verdict_events[0]["metadata"]
-        assert md["majority_verdict"] == "acquit"
+        assert md["majority_verdict"] == "NOT GUILTY"
         assert md["vote_split"] == "1-2"
-        assert "ACQUIT" in verdict_events[0]["message"]
+        assert "NOT GUILTY" in verdict_events[0]["message"]
 
 
 class TestStrategyEvent:

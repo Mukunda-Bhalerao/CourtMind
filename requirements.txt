@@ -19,6 +19,7 @@ chromadb>=0.4.22
 
 # Document Processing
 pymupdf>=1.23.0
+pdfminer.six>=20221105
 python-docx>=0.8.11
 openpyxl>=3.1.2
 

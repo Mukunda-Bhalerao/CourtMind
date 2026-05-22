@@ -1,0 +1,66 @@
+COURTMIND TEST CASE — EXPECTED VERDICT: NOT GUILTY
+
+  -----------------------------------
+  Victim Narrative
+  -----------------------------------
+  On the night of 12 March, I was
+  walking near the local market when
+  Rahul suddenly approached me
+  aggressively. He pulled out a knife
+  and attempted to stab me. I
+  panicked and tried to defend
+  myself. During the struggle, I
+  grabbed a wooden stick that was
+  lying nearby and struck Rahul once
+  to stop the attack. Rahul fell to
+  the ground and later died from the
+  injury.
+
+  I did not intend to kill him. I
+  only acted to protect myself from
+  the knife attack.
+  -----------------------------------
+
+Accused Narrative
+
+I was walking home through the market area when Rahul confronted me and
+started shouting at me. Suddenly he took out a knife and tried to attack
+me. I was scared for my life and acted instinctively. I picked up a
+wooden stick nearby and struck him once to stop the attack. I had no
+intention of killing him and only wanted to escape the situation safely.
+
+  -----------------------------------
+  Evidence
+  -----------------------------------
+  1. CCTV footage from a nearby shop
+  shows Rahul approaching the accused
+  first. 2. A knife was recovered
+  near Rahul at the scene. 3. Medical
+  report shows a single blunt-force
+  injury to the head. 4. A witness
+  reported that Rahul attempted to
+  attack the accused before the
+  accused responded.
+
+  -----------------------------------
+
+Legal Context
+
+The accused claims the act was done in self-defense.
+
+Relevant principle: Right of Private Defence (IPC Sections 96–106)
+states that an act done in exercise of the right of private defence is
+not an offence if the force used is reasonably necessary to prevent
+harm.
+
+  ------------------------
+  Expected Legal Outcome
+  ------------------------
+
+Death occurred, which may initially trigger analysis under IPC Section
+299 or 300. However, the evidence indicates that the accused acted in
+self-defense after being attacked with a deadly weapon.
+
+Therefore: The right of private defence applies.
+
+Expected CourtMind Verdict: NOT GUILTY

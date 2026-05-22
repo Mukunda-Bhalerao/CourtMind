@@ -37,6 +37,27 @@ _JUDGE_ACTOR: Dict[str, str] = {
     "burden_strict": "burden_judge",
 }
 
+# Human-readable element descriptions for better simulation text
+_ELEMENT_DESCRIPTION: Dict[str, str] = {
+    "death_of_human": "the death of the victim",
+    "hurt_element": "physical hurt or injury sustained",
+    "deception_element": "deception or cheating committed",
+    "inducement_element": "inducement that misled the victim",
+    "gain_loss_element": "wrongful gain or loss suffered",
+    "act_by_accused": "the act committed by the accused",
+    "intention_or_knowledge": "intention or knowledge of likely consequences",
+    "knowledge_element": "knowledge of the wrongful nature of the act",
+    "voluntary_causing": "voluntarily causing hurt",
+    "dishonest_intent": "dishonest intent to defraud",
+}
+
+# Map backend verdict tokens to courtroom-friendly labels
+_VERDICT_LABEL: Dict[str, str] = {
+    "convict": "GUILTY",
+    "acquit": "NOT GUILTY",
+    "review": "NEEDS FURTHER REVIEW",
+}
+
 
 class SimulationEventGenerator:
     """
@@ -185,11 +206,14 @@ class SimulationEventGenerator:
         if victim_facts:
             for vf in victim_facts:
                 eid = vf.get("element_id", "?")
+                desc = _ELEMENT_DESCRIPTION.get(eid, eid.replace('_', ' '))
+                fact_count = len(vf.get("matching_fact_ids", []))
                 events.append(self._evt(
                     EventType.VICTIM_STATEMENT, "victim",
-                    f"The victim describes: {eid.replace('_', ' ')}.",
+                    f"The victim testifies about {desc} "
+                    f"({fact_count} supporting fact{'s' if fact_count != 1 else ''}).",
                     metadata={"element_id": eid,
-                              "fact_count": len(vf.get("matching_fact_ids", []))},
+                              "fact_count": fact_count},
                     ts=ts,
                 ))
                 ts += _TS_STEP
@@ -205,9 +229,10 @@ class SimulationEventGenerator:
         if accused_facts:
             for af in accused_facts:
                 eid = af.get("element_id", "?")
+                desc = _ELEMENT_DESCRIPTION.get(eid, eid.replace('_', ' '))
                 events.append(self._evt(
                     EventType.ACCUSED_STATEMENT, "accused",
-                    f"The accused addresses: {eid.replace('_', ' ')}.",
+                    f"The accused responds regarding {desc}.",
                     metadata={"element_id": eid},
                     ts=ts,
                 ))
@@ -297,12 +322,13 @@ class SimulationEventGenerator:
             reasoning = judge.get("key_reasoning_points", [])
             summary = reasoning[0] if reasoning else "No reasoning provided."
 
+            verdict_label = _VERDICT_LABEL.get(verdict.lower(), verdict.upper())
             events.append(self._evt(
                 EventType.JUDGE_VOTE, actor,
-                f"Judge ({jtype}) votes: {verdict}. {summary}",
+                f"Judge ({jtype}) votes: {verdict_label}. {summary}",
                 metadata={
                     "judge": jtype,
-                    "vote": verdict,
+                    "vote": verdict_label,
                     "agreement_with_lawyer": judge.get("agreement_with_lawyer", False),
                     "concerns": judge.get("concerns", []),
                 },
@@ -322,13 +348,14 @@ class SimulationEventGenerator:
             return ts
 
         majority = pr.get("majority_verdict", "review")
+        majority_label = _VERDICT_LABEL.get(majority.lower(), majority.upper())
         split = pr.get("vote_split", "?")
 
         events.append(self._evt(
             EventType.VERDICT_DELIVERED, "panel",
-            f"Majority verdict: {majority.upper()}.",
+            f"Majority verdict: {majority_label} (vote split: {split}).",
             metadata={
-                "majority_verdict": majority,
+                "majority_verdict": majority_label,
                 "vote_split": split,
             },
             ts=ts,

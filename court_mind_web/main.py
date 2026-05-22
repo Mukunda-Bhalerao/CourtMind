@@ -1,7 +1,11 @@
 """
 CourtMind — FastAPI Web Interface
 
-Connects the browser UI → FactMatrix → run_full_simulation pipeline.
+Connects the browser UI → Fact Extraction → FactMatrix → Simulation pipeline.
+
+New flow (v2):
+    Upload file / paste text → parse → extract_facts (Ollama + keyword fallback)
+    → FactMatrix → run_full_simulation → animated courtroom UI
 
 Usage
 -----
@@ -9,52 +13,54 @@ Usage
     uvicorn main:app --reload
 """
 
+import json
+import logging
+import os
 import sys
+import time
 from pathlib import Path
+from typing import Optional
 
 # Ensure the project root is on sys.path so `core.*` / `simulation.*` resolve.
 _PROJECT_ROOT = str(Path(__file__).resolve().parent.parent)
 if _PROJECT_ROOT not in sys.path:
     sys.path.insert(0, _PROJECT_ROOT)
 
-from fastapi import FastAPI, Form, Request
-from fastapi.responses import HTMLResponse
+from fastapi import FastAPI, File, Form, Request, UploadFile
+from fastapi.responses import HTMLResponse, JSONResponse
 from fastapi.staticfiles import StaticFiles
 from fastapi.templating import Jinja2Templates
 
+from core.fact_extractor import extract_facts, extract_facts_keyword_only
 from core.fact_matrix import FactMatrix, FactSource
+from court_mind_web.utils.file_parser import (
+    UnsupportedFileType,
+    parse_file,
+)
+from research.context_engine import ContextEngine
+from research.precedent_engine import PrecedentEngine
+from research.research_aggregator import ResearchAggregator
 from simulation.run_simulation import run_full_simulation
 
-app = FastAPI(title="CourtMind", version="1.0.0")
+log = logging.getLogger(__name__)
+
+app = FastAPI(title="CourtMind", version="2.0.0")
 
 app.mount("/static", StaticFiles(directory=str(Path(__file__).parent / "static")), name="static")
 templates = Jinja2Templates(directory=str(Path(__file__).parent / "templates"))
 
 
 # ===============================
-# Utility: Convert narrative to FactMatrix
+# Research Aggregator (with API keys from env if available)
 # ===============================
-def build_fact_matrix(victim_text: str, accused_text: str, evidence_text: str, exception_text: str) -> FactMatrix:
-    fm = FactMatrix()
-
-    if victim_text.strip():
-        fm.add_fact("actus_reus", victim_text, FactSource.USER_INPUT)
-
-    if accused_text.strip():
-        fm.add_fact("mens_rea", accused_text, FactSource.USER_INPUT)
-
-    if evidence_text.strip():
-        fm.add_fact("evidence", evidence_text, FactSource.DOCUMENT)
-
-    if exception_text.strip():
-        fm.add_fact(
-            "exceptions_claimed",
-            exception_text,
-            FactSource.USER_INPUT,
-            severity="medium",
-        )
-
-    return fm
+def _build_research_aggregator() -> ResearchAggregator:
+    """Build a ResearchAggregator with API keys from environment."""
+    kanoon_key = os.environ.get("KANOON_API_KEY")
+    serper_key = os.environ.get("SERPER_API_KEY")
+    return ResearchAggregator(
+        precedent_engine=PrecedentEngine(kanoon_api_key=kanoon_key),
+        context_engine=ContextEngine(serper_api_key=serper_key),
+    )
 
 
 # ===============================
@@ -65,22 +71,118 @@ async def home(request: Request):
     return templates.TemplateResponse("index.html", {"request": request})
 
 
-@app.post("/simulate", response_class=HTMLResponse)
-async def simulate(
+@app.post("/analyze", response_class=HTMLResponse)
+async def analyze(
     request: Request,
-    victim: str = Form(...),
-    accused: str = Form(...),
+    file: Optional[UploadFile] = File(None),
+    case_text: str = Form(""),
+):
+    """
+    Main analysis endpoint.
+
+    Accepts EITHER an uploaded case file OR pasted text (or both — file
+    takes priority).  Extracts facts, runs the full simulation pipeline,
+    and returns the animated courtroom UI.
+    """
+    # 1. Get raw case text
+    raw_text = ""
+    if file and file.filename:
+        try:
+            contents = await file.read()
+            raw_text = parse_file(file.filename, contents)
+        except UnsupportedFileType as exc:
+            return templates.TemplateResponse(
+                "index.html",
+                {"request": request, "error": str(exc)},
+            )
+        except Exception as exc:
+            return templates.TemplateResponse(
+                "index.html",
+                {"request": request, "error": f"Failed to parse file: {exc}"},
+            )
+
+    if not raw_text.strip():
+        raw_text = case_text.strip()
+
+    if not raw_text:
+        return templates.TemplateResponse(
+            "index.html",
+            {"request": request, "error": "Please upload a file or paste case text."},
+        )
+
+    # 2. Extract structured facts (Ollama → keyword fallback)
+    try:
+        fm = extract_facts(raw_text)
+    except Exception:
+        log.warning("Fact extraction failed, using keyword fallback", exc_info=True)
+        fm = extract_facts_keyword_only(raw_text)
+
+    # 3. Run full simulation with research aggregator
+    aggregator = _build_research_aggregator()
+    result = run_full_simulation(fm, auto_detect=True, research_aggregator=aggregator)
+
+    # 4. Prepare JSON for animated courtroom UI
+    sim_events = result.get("simulation_events", {"events": [], "total_events": 0})
+    events_json = json.dumps(sim_events, default=str, ensure_ascii=False)
+    case_result_json = json.dumps(result, default=str, ensure_ascii=False)
+
+    return templates.TemplateResponse(
+        "simulation.html",
+        {
+            "request": request,
+            "events_json": events_json,
+            "case_result_json": case_result_json,
+            "cache_bust": int(time.time()),
+        },
+    )
+
+
+@app.post("/upload-case")
+async def upload_case(file: UploadFile = File(...)):
+    """Parse an uploaded .txt / .pdf / .docx file and return extracted text."""
+    try:
+        contents = await file.read()
+        text = parse_file(file.filename or "unknown.txt", contents)
+        return JSONResponse({"extracted_text": text})
+    except UnsupportedFileType as exc:
+        return JSONResponse({"detail": str(exc)}, status_code=400)
+    except Exception as exc:
+        return JSONResponse({"detail": f"Failed to parse file: {exc}"}, status_code=500)
+
+
+# Keep old /simulate route for backward compatibility
+@app.post("/simulate", response_class=HTMLResponse)
+async def simulate_legacy(
+    request: Request,
+    victim: str = Form(""),
+    accused: str = Form(""),
     evidence: str = Form(""),
     exceptions: str = Form(""),
 ):
-    fm = build_fact_matrix(victim, accused, evidence, exceptions)
+    """Legacy endpoint — builds FactMatrix from four text fields."""
+    fm = FactMatrix()
+    if victim.strip():
+        fm.add_fact("actus_reus", victim, FactSource.USER_INPUT)
+    if accused.strip():
+        fm.add_fact("mens_rea", accused, FactSource.USER_INPUT)
+    if evidence.strip():
+        fm.add_fact("evidence", evidence, FactSource.DOCUMENT)
+    if exceptions.strip():
+        fm.add_fact("exceptions_claimed", exceptions, FactSource.USER_INPUT, severity="medium")
 
-    result = run_full_simulation(fm, auto_detect=True)
+    aggregator = _build_research_aggregator()
+    result = run_full_simulation(fm, auto_detect=True, research_aggregator=aggregator)
+
+    sim_events = result.get("simulation_events", {"events": [], "total_events": 0})
+    events_json = json.dumps(sim_events, default=str, ensure_ascii=False)
+    case_result_json = json.dumps(result, default=str, ensure_ascii=False)
 
     return templates.TemplateResponse(
-        "index.html",
+        "simulation.html",
         {
             "request": request,
-            "result": result,
+            "events_json": events_json,
+            "case_result_json": case_result_json,
+            "cache_bust": int(time.time()),
         },
     )

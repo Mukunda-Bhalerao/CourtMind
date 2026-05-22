@@ -42,7 +42,9 @@ class IPC420Evaluator(StatuteEvaluator):
             match_keywords=(
                 "deception", "deceived", "false representation",
                 "misrepresentation", "fraud", "cheating", "lied",
-                "fabricated", "false pretense",
+                "fabricated", "false pretense", "forged", "fake",
+                "impersonat", "false promise", "false document",
+                "bogus", "sham", "fraudulent",
             ),
             min_severity=Severity.MEDIUM.value,
             required=True,
@@ -55,6 +57,9 @@ class IPC420Evaluator(StatuteEvaluator):
             match_keywords=(
                 "induced", "inducement", "dishonest", "coerced into signing",
                 "tricked into", "persuaded falsely", "lured",
+                "convinced to invest", "promised returns", "invest",
+                "deposit", "hand over", "deliver", "signed over",
+                "transfer", "gave money", "paid",
             ),
             min_severity=Severity.MEDIUM.value,
             required=True,
@@ -67,7 +72,10 @@ class IPC420Evaluator(StatuteEvaluator):
             match_keywords=(
                 "wrongful gain", "wrongful loss", "financial loss",
                 "monetary gain", "property transferred", "stolen funds",
-                "embezzled", "misappropriated",
+                "embezzled", "misappropriated", "lost money",
+                "lost savings", "vanished", "ran away with",
+                "absconded", "never returned", "loss of",
+                "crore", "lakh", "rupees", "investment",
             ),
             min_severity=Severity.MEDIUM.value,
             required=True,

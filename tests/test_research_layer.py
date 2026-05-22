@@ -297,3 +297,88 @@ class TestValidateCitations:
         result = guardrails.validate_citations(ca, sim, rd)
         assert result["valid"] is False
         assert len(result["violations"]) >= 2
+
+
+# ── ReportGenerator Tests ─────────────────────────────────────────────
+
+import json
+from core.report_generator import ReportGenerator
+
+
+def _sample_simulation_result() -> dict:
+    return {
+        "case_analysis": {
+            "evaluation_result": {
+                "section": "302 IPC",
+                "confidence_score": 0.85,
+                "element_details": [
+                    {"element_id": "death_of_human", "satisfied": True,
+                     "matching_fact_ids": ["f1"], "weight": 0.3},
+                    {"element_id": "act_by_accused", "satisfied": True,
+                     "matching_fact_ids": ["f2"], "weight": 0.3},
+                    {"element_id": "intention_or_knowledge", "satisfied": False,
+                     "matching_fact_ids": [], "weight": 0.4},
+                ],
+            },
+            "burden_result": {
+                "burden_stage": "prosecution_affirmative",
+                "confidence_score": 0.85,
+                "burden_met": True,
+            },
+            "evidence_weight_result": {
+                "overall_evidence_score": 0.7,
+                "per_element_scores": {"death_of_human": 0.9},
+            },
+        },
+        "panel_result": {
+            "majority_verdict": "convict",
+            "vote_split": "2-1",
+            "judges": [
+                {"judge_type": "textualist", "provisional_verdict": "convict",
+                 "key_reasoning_points": ["Elements met."]},
+            ],
+        },
+        "final_judgment": "Accused found guilty under 302 IPC.",
+        "research_data": {"precedents": [], "recent_context": []},
+        "guardrail_report": {"violations": []},
+        "strategy_report": {
+            "prosecution_strategy": ["Emphasize forensic evidence."],
+            "defense_strategy": ["Challenge intention."],
+            "conviction_probability_estimate": 0.72,
+            "risk_level": "high",
+            "weak_elements": ["intention_or_knowledge"],
+            "strong_elements": ["death_of_human"],
+        },
+        "explanation": "Deterministic explanation text.",
+    }
+
+
+class TestReportGenerator:
+    def test_to_json_valid(self):
+        gen = ReportGenerator()
+        js = gen.to_json(_sample_simulation_result())
+        parsed = json.loads(js)
+        assert parsed["case_analysis"]["evaluation_result"]["section"] == "302 IPC"
+
+    def test_to_markdown_has_key_sections(self):
+        gen = ReportGenerator()
+        md = gen.to_markdown(_sample_simulation_result())
+        assert "# CourtMind Case Report" in md
+        assert "302 IPC" in md
+        assert "## Element Status" in md
+        assert "death of human" in md
+        assert "## Panel Deliberation" in md
+        assert "CONVICT" in md
+        assert "## Strategy Analysis" in md
+        assert "72.0%" in md
+        assert "## Final Judgment" in md
+
+    def test_to_markdown_empty_result(self):
+        gen = ReportGenerator()
+        md = gen.to_markdown({})
+        assert "# CourtMind Case Report" in md
+
+    def test_to_json_empty_result(self):
+        gen = ReportGenerator()
+        js = gen.to_json({})
+        assert json.loads(js) == {}
