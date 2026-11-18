@@ -26,6 +26,7 @@ from __future__ import annotations
 
 import json
 import logging
+import os
 import re
 from typing import Any, Dict, List, Optional, Tuple
 
@@ -35,8 +36,48 @@ from core.ontology import LegalTag
 log = logging.getLogger(__name__)
 
 # ── Ollama configuration ─────────────────────────────────────────────────
+# All settings can be overridden through environment variables so the same
+# code runs locally (Ollama on localhost) and in the cloud (Ollama Cloud with
+# an API key, or LLM disabled entirely → keyword extraction).
+#
+#   LLM_EXTRACTION   "true" / "false"   (default: true)
+#   OLLAMA_BASE_URL  e.g. http://localhost:11434  or  https://ollama.com
+#   OLLAMA_MODEL     e.g. llama3.2  or  gpt-oss:120b
+#   OLLAMA_API_KEY   bearer token (only needed for Ollama Cloud)
+#   OLLAMA_TIMEOUT   seconds (default: 60)
+
 DEFAULT_OLLAMA_URL = "http://localhost:11434/api/generate"
 DEFAULT_MODEL = "llama3.2"
+
+
+def _env_flag(name: str, default: bool) -> bool:
+    raw = os.environ.get(name)
+    if raw is None or not raw.strip():
+        return default
+    return raw.strip().lower() in {"1", "true", "yes", "on"}
+
+
+def llm_extraction_enabled() -> bool:
+    """Whether LLM-based extraction should be attempted at all."""
+    return _env_flag("LLM_EXTRACTION", True)
+
+
+def _configured_ollama_url() -> str:
+    base = os.environ.get("OLLAMA_BASE_URL", "").strip().rstrip("/")
+    if not base:
+        return DEFAULT_OLLAMA_URL
+    return base if base.endswith("/api/generate") else base + "/api/generate"
+
+
+def _configured_model() -> str:
+    return os.environ.get("OLLAMA_MODEL", "").strip() or DEFAULT_MODEL
+
+
+def _configured_timeout() -> int:
+    try:
+        return int(os.environ.get("OLLAMA_TIMEOUT", "60"))
+    except ValueError:
+        return 60
 
 _EXTRACTION_PROMPT = """\
 You are a legal fact extractor for Indian criminal cases under the Indian Penal Code (IPC).
@@ -162,9 +203,9 @@ _EXCEPTION_KEYWORDS: List[Tuple[str, List[str], str]] = [
 def extract_facts(
     case_text: str,
     *,
-    ollama_url: str = DEFAULT_OLLAMA_URL,
-    model: str = DEFAULT_MODEL,
-    timeout: int = 60,
+    ollama_url: Optional[str] = None,
+    model: Optional[str] = None,
+    timeout: Optional[int] = None,
 ) -> FactMatrix:
     """
     Extract structured legal facts from *case_text*.
@@ -192,13 +233,20 @@ def extract_facts(
     if not case_text:
         return FactMatrix()
 
-    # Try LLM extraction
-    llm_data = _call_ollama(case_text, ollama_url, model, timeout)
+    # Try LLM extraction (skipped entirely when LLM_EXTRACTION=false)
+    llm_data = None
+    if llm_extraction_enabled():
+        llm_data = _call_ollama(
+            case_text,
+            ollama_url or _configured_ollama_url(),
+            model or _configured_model(),
+            timeout or _configured_timeout(),
+        )
 
     if llm_data:
         fm = _build_matrix_from_llm(llm_data, case_text)
     else:
-        log.info("Ollama unavailable — using keyword heuristic extraction")
+        log.info("LLM extraction disabled or unavailable — using keyword heuristic extraction")
         fm = _build_matrix_from_keywords(case_text)
 
     # Always enrich with keyword-derived tags regardless of source
@@ -224,6 +272,14 @@ def extract_facts_keyword_only(case_text: str) -> FactMatrix:
 # Ollama interaction
 # ═════════════════════════════════════════════════════════════════════════
 
+def _request_headers() -> Dict[str, str]:
+    headers = {"Content-Type": "application/json"}
+    api_key = os.environ.get("OLLAMA_API_KEY", "").strip()
+    if api_key:
+        headers["Authorization"] = f"Bearer {api_key}"
+    return headers
+
+
 def _call_ollama(
     case_text: str,
     url: str,
@@ -244,7 +300,7 @@ def _call_ollama(
     req = urllib.request.Request(
         url,
         data=payload,
-        headers={"Content-Type": "application/json"},
+        headers=_request_headers(),
         method="POST",
     )
 

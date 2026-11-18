@@ -1,0 +1,30 @@
+# Render Blueprint — https://render.com/docs/blueprint-spec
+# New → Blueprint → pick this GitHub repo, and Render reads this file.
+services:
+  - type: web
+    name: courtmind
+    runtime: python
+    plan: free
+    region: singapore
+    branch: main
+    buildCommand: pip install --upgrade pip && pip install -r court_mind_web/requirements.txt
+    startCommand: uvicorn court_mind_web.main:app --host 0.0.0.0 --port $PORT --proxy-headers --forwarded-allow-ips="*"
+    healthCheckPath: /healthz
+    autoDeploy: true
+    envVars:
+      - key: PYTHON_VERSION
+        value: 3.11.9
+      # No Ollama server on Render → use the built-in keyword extractor.
+      # To use Ollama Cloud instead: set LLM_EXTRACTION=true,
+      # OLLAMA_BASE_URL=https://ollama.com, OLLAMA_MODEL and OLLAMA_API_KEY.
+      - key: LLM_EXTRACTION
+        value: "false"
+      - key: OLLAMA_TIMEOUT
+        value: "45"
+      # Optional research APIs — fill these in the Render dashboard.
+      - key: SERPER_API_KEY
+        sync: false
+      - key: KANOON_API_KEY
+        sync: false
+      - key: OLLAMA_API_KEY
+        sync: false

@@ -1,575 +1,612 @@
 /**
  * CourtMind — Simulation Player
  *
- * Drives the animated courtroom UI by stepping through simulation events,
- * updating actor cards, speech bubbles, evidence board, and playback state.
+ * Steps through the simulation events produced by the backend and drives the
+ * courtroom UI: actor cards, spotlight, timeline scrubber, court record,
+ * evidence archive, verdict modal and the full report drawer.
  */
-
 (function () {
     "use strict";
 
-    // ── DOM references ──────────────────────────────────────────
-    const $ = (sel) => document.querySelector(sel);
-    const $$ = (sel) => document.querySelectorAll(sel);
+    const $ = (s, r) => (r || document).querySelector(s);
+    const $$ = (s, r) => Array.from((r || document).querySelectorAll(s));
 
-    const btnPlay    = $("#btn-play");
-    const btnNext    = $("#btn-next");
-    const btnPrev    = $("#btn-prev");
-    const btnRestart = $("#btn-restart");
-    const btnBack    = $("#btn-back");
-    const speedSel   = $("#speed-select");
-    const progressBar = $("#progress-fill");
-    const statusBadge = $("#status-badge");
-    const eventCounter = $("#event-counter");
+    const RAW_EVENTS = window.SIMULATION_EVENTS;
+    const R = window.CASE_RESULT || {};
+    const events = Array.isArray(RAW_EVENTS) ? RAW_EVENTS : (RAW_EVENTS && RAW_EVENTS.events) || [];
 
-    // Verdict overlay
-    const verdictOverlay = $("#verdict-overlay");
-    const verdictTitle   = $("#verdict-title");
-    const verdictDetail  = $("#verdict-detail");
-    const verdictGavel   = $("#verdict-gavel");
-    const btnReplay      = $("#btn-replay");
-    const btnDetails     = $("#btn-details");
-    const btnHome        = $("#btn-home");
-
-    // Report panel
-    const reportPanel    = $("#report-panel");
-    const reportContent  = $("#report-content");
-    const btnCloseReport = $("#btn-close-report");
-
-    // ── State ───────────────────────────────────────────────────
-    let events       = [];
-    let currentIndex = -1;
-    let playing      = false;
-    let timer        = null;
-
-    const ACTORS = [
-        "victim", "accused", "prosecutor", "defense",
-        "textualist_judge", "evidence_judge", "burden_judge",
-        "panel", "system"
-    ];
-
-    // Map event_type → which actor card lights up
-    const EVENT_ACTOR_MAP = {
-        case_start:            "system",
-        victim_statement:      "victim",
-        accused_statement:     "accused",
-        prosecutor_argument:   "prosecutor",
-        defense_argument:      "defense",
-        evidence_presented:    "prosecutor",
-        judge_question:        null,        // uses event.actor
-        judge_thinking:        null,
-        panel_deliberation:    "panel",
-        judge_vote:            null,
-        verdict_delivered:     "panel",
-        strategy_presented:    "system",
-        explanation_displayed: "system",
-        hearing_feedback:      "panel",
-        hearing_update:        "system",
+    const ACTORS = ["victim", "accused", "prosecutor", "defense", "textualist_judge", "evidence_judge", "burden_judge", "panel"];
+    const ACTOR_LABEL = {
+        system: "Court Clerk", victim: "Victim", accused: "Accused", prosecutor: "Prosecution",
+        defense: "Defence", textualist_judge: "Textualist Judge", evidence_judge: "Evidence Judge",
+        burden_judge: "Burden Judge", panel: "Panel",
     };
+    const ACTOR_COLOR = {
+        system: "var(--muted)", victim: "var(--red)", accused: "var(--amber)", prosecutor: "#ff8a65",
+        defense: "var(--blue)", textualist_judge: "var(--gold)", evidence_judge: "var(--cyan)",
+        burden_judge: "var(--violet)", panel: "var(--gold-strong)",
+    };
+    const EVENT_ACTOR_MAP = {
+        case_start: "system", victim_statement: "victim", accused_statement: "accused",
+        prosecutor_argument: "prosecutor", defense_argument: "defense", evidence_presented: "prosecutor",
+        panel_deliberation: "panel", verdict_delivered: "panel", strategy_presented: "system",
+        explanation_displayed: "system", hearing_feedback: "panel", hearing_update: "system",
+    };
+    const JUDGE_KEY = { textualist: "textualist_judge", evidence_focused: "evidence_judge", burden_strict: "burden_judge" };
 
-    // ── Initialise ──────────────────────────────────────────────
-    function init() {
-        if (typeof SIMULATION_EVENTS !== "undefined" && SIMULATION_EVENTS.events) {
-            events = SIMULATION_EVENTS.events;
-        } else if (Array.isArray(SIMULATION_EVENTS)) {
-            events = SIMULATION_EVENTS;
-        } else {
-            events = [];
-        }
-        eventCounter.textContent = `0 / ${events.length}`;
-        statusBadge.textContent  = "Ready";
-        setAllIdle();
-        renderUploadedEvidence();
-        bindControls();
+    // ── State ───────────────────────────────────────────────────────
+    let idx = -1;
+    let playing = false;
+    let timer = null;
+    let typeTimer = null;
+    let speed = 1900;
+    let verdictShown = false;
+
+    // ── Helpers ─────────────────────────────────────────────────────
+    const esc = (s) => String(s == null ? "" : s).replace(/[&<>"']/g, c => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));
+    const human = (s) => String(s || "").replace(/_/g, " ").replace(/\b\w/g, c => c.toUpperCase());
+    const clean = (s) => String(s || "").replace(/-{3,}/g, " ").replace(/\s+/g, " ").trim();
+    const pct = (n) => (typeof n === "number" ? Math.round(n * 100) + "%" : "—");
+    const actorOf = (e) => EVENT_ACTOR_MAP[e.event_type] || e.actor || "system";
+    const fmtSplit = (s) => /^\d+$/.test(String(s || "")) ? `Unanimous ${s}–0` : (s || "—");
+    const stripMd = (s) => String(s || "").replace(/[#*`]/g, "").replace(/\s+/g, " ").trim();
+
+    function mapVerdict(raw) {
+        const v = String(raw || "").toLowerCase().trim();
+        if (v.includes("not guilty") || v.startsWith("acquit")) return { label: "Not Guilty", cls: "innocent" };
+        if (v.includes("review")) return { label: "Further Review", cls: "review" };
+        if (v.includes("guilty") || v.startsWith("convict")) return { label: "Guilty", cls: "guilty" };
+        return { label: raw || "Undecided", cls: "review" };
     }
 
-    function bindControls() {
-        btnPlay.addEventListener("click", togglePlay);
-        btnNext.addEventListener("click", stepForward);
-        btnPrev.addEventListener("click", stepBack);
-        btnRestart.addEventListener("click", restart);
-        btnBack.addEventListener("click", () => window.location.href = "/");
-        speedSel.addEventListener("change", () => {
-            if (playing) { clearInterval(timer); startTimer(); }
-        });
-
-        btnReplay.addEventListener("click", () => {
-            verdictOverlay.classList.add("hidden");
-            restart();
-        });
-        btnDetails.addEventListener("click", showReport);
-        btnHome.addEventListener("click", () => window.location.href = "/");
-        btnCloseReport.addEventListener("click", () => reportPanel.classList.add("hidden"));
-    }
-
-    // ── Playback ────────────────────────────────────────────────
-    function togglePlay() {
-        if (playing) { pause(); } else { play(); }
-    }
-
-    function play() {
-        if (currentIndex >= events.length - 1) restart();
-        playing = true;
-        btnPlay.innerHTML = "&#9646;&#9646; Pause";
-        statusBadge.textContent = "In Session";
-        statusBadge.className = "px-3 py-1 rounded-full text-sm font-semibold bg-green-600";
-        startTimer();
-    }
-
-    function pause() {
-        playing = false;
-        clearInterval(timer);
-        btnPlay.innerHTML = "&#9654; Play";
-        statusBadge.textContent = "Paused";
-        statusBadge.className = "px-3 py-1 rounded-full text-sm font-semibold bg-yellow-600";
-    }
-
-    function startTimer() {
-        const speed = parseInt(speedSel.value, 10);
-        timer = setInterval(() => {
-            if (currentIndex < events.length - 1) {
-                stepForward();
-            } else {
-                pause();
-                statusBadge.textContent = "Complete";
-                statusBadge.className = "px-3 py-1 rounded-full text-sm font-semibold bg-blue-600";
-            }
-        }, speed);
-    }
-
-    function stepForward() {
-        if (currentIndex >= events.length - 1) return;
-        currentIndex++;
-        renderEvent(events[currentIndex]);
-        updateProgress();
-    }
-
-    function stepBack() {
-        if (currentIndex <= 0) return;
-        // Replay from the start up to currentIndex-1
-        const target = currentIndex - 1;
-        resetUI();
-        for (let i = 0; i <= target; i++) {
-            renderEvent(events[i], true);
-        }
-        currentIndex = target;
-        updateProgress();
-    }
-
-    function restart() {
-        clearInterval(timer);
-        playing = false;
-        currentIndex = -1;
-        resetUI();
-        btnPlay.innerHTML = "&#9654; Play";
-        statusBadge.textContent = "Ready";
-        statusBadge.className = "px-3 py-1 rounded-full text-sm font-semibold bg-blue-600";
-        eventCounter.textContent = `0 / ${events.length}`;
-        progressBar.style.width = "0%";
-        verdictOverlay.classList.add("hidden");
-    }
-
-    function updateProgress() {
-        const pct = events.length ? ((currentIndex + 1) / events.length * 100) : 0;
-        progressBar.style.width = pct + "%";
-        eventCounter.textContent = `${currentIndex + 1} / ${events.length}`;
-    }
-
-    // ── Render a single event ───────────────────────────────────
-    function renderEvent(evt, silent) {
-        const actor  = EVENT_ACTOR_MAP[evt.event_type] || evt.actor || "system";
-        const type   = evt.event_type;
-        const msg    = evt.message || "";
-
-        // Reset previous active states (unless replaying silently)
-        if (!silent) setAllIdle();
-
-        // Animate actor card
-        setActorState(actor, getStateForType(type));
-
-        // Speech bubble
-        setSpeech(actor, msg, silent);
-
-        // Event log entry
-        addLogEntry(evt, silent);
-
-        // Type-specific rendering
-        switch (type) {
-            case "evidence_presented":
-                addEvidenceCard(msg);
-                break;
-            case "judge_vote":
-                showJudgeVote(evt);
-                break;
-            case "verdict_delivered":
-                if (!silent) showVerdict(evt);
-                break;
-        }
-    }
-
-    // ── Actor state management ──────────────────────────────────
-    function setAllIdle() {
-        ACTORS.forEach(a => {
-            const card = $(`#card-${a}`);
-            if (card) {
-                card.classList.remove("speaking", "thinking", "voting");
-                card.classList.add("idle");
-            }
-            const st = $(`#state-${a}`);
-            if (st) st.textContent = "Idle";
-        });
-    }
-
-    function setActorState(actor, state) {
-        const card = $(`#card-${actor}`);
-        if (!card) return;
-        card.classList.remove("idle", "speaking", "thinking", "voting");
-        card.classList.add(state);
-        const st = $(`#state-${actor}`);
-        if (st) st.textContent = capitalize(state);
-    }
-
-    function getStateForType(type) {
+    function stateFor(type) {
         if (type === "judge_thinking" || type === "panel_deliberation") return "thinking";
         if (type === "judge_vote") return "voting";
         return "speaking";
     }
 
-    // ── Speech bubbles ──────────────────────────────────────────
-    function setSpeech(actor, message, silent) {
-        const container = $(`#speech-${actor}`);
-        if (!container) return;
+    // ── Header ──────────────────────────────────────────────────────
+    function renderHeader() {
+        const ca = R.case_analysis || {};
+        const er = ca.evaluation_result || {};
+        const br = ca.burden_result || {};
+        const sr = R.strategy_report || {};
+        const section = er.section || (R.lawyer_output && R.lawyer_output.confirmed_section) || "";
+        $("#case-title").textContent = section ? `${section}${er.section_title ? " · " + er.section_title : ""}` : "Courtroom simulation";
+        document.title = `CourtMind — ${section || "Courtroom"}`;
 
-        // Clear old speech
-        container.innerHTML = "";
+        const meta = [];
+        if (br.burden_stage) meta.push(`<span class="pill">Burden: ${esc(human(br.burden_stage))}</span>`);
+        if (sr.risk_level) meta.push(`<span class="pill">Risk: ${esc(human(sr.risk_level))}</span>`);
+        const alts = (R.lawyer_output && R.lawyer_output.alternate_sections) || [];
+        if (alts.length) meta.push(`<span class="pill">Also considered: ${esc(alts.join(", "))}</span>`);
+        $("#case-meta").innerHTML = meta.join("");
 
-        if (!message) return;
-
-        const bubble = document.createElement("div");
-        bubble.className = "speech-bubble";
-        bubble.textContent = truncate(message, 300);
-        if (!silent) bubble.style.animation = "fadeSlideIn 0.4s ease";
-        container.appendChild(bubble);
+        const req = (er.elements_required || []).length;
+        const sat = (er.elements_satisfied || []).length;
+        const stats = [
+            ["Elements met", req ? `${sat}/${req}` : "—"],
+            ["Confidence", pct(br.confidence_score)],
+            ["Conviction est.", pct(sr.conviction_probability_estimate)],
+            ["Events", String(events.length)],
+        ];
+        $("#case-stats").innerHTML = stats.map(([k, v]) => `<div class="stat"><div class="k">${k}</div><div class="v">${esc(v)}</div></div>`).join("");
     }
 
-    // ── Evidence board ──────────────────────────────────────────
-    function addEvidenceCard(message) {
-        const board = $("#evidence-board");
-        if (!board) return;
-        const card = document.createElement("div");
-        card.className = "evidence-card bg-gray-700 rounded p-2 text-xs";
-        card.textContent = truncate(message, 150);
-        board.appendChild(card);
-        board.scrollTop = board.scrollHeight;
+    // ── Scrubber ────────────────────────────────────────────────────
+    function buildScrubber() {
+        const dots = $("#scrubber-dots");
+        const n = events.length;
+        dots.innerHTML = "";
+        events.forEach((e, i) => {
+            const d = document.createElement("span");
+            d.className = "scrubber-dot";
+            d.style.left = n > 1 ? (i / (n - 1)) * 100 + "%" : "50%";
+            d.style.setProperty("--c", ACTOR_COLOR[actorOf(e)] || "var(--muted)");
+            d.dataset.i = i;
+            dots.appendChild(d);
+        });
+        const scrub = $("#scrubber");
+        const tip = $("#scrubber-tip");
+        const indexAt = (x) => {
+            const r = scrub.getBoundingClientRect();
+            const f = Math.min(1, Math.max(0, (x - r.left) / r.width));
+            return Math.round(f * (n - 1));
+        };
+        scrub.addEventListener("mousemove", (ev) => {
+            if (!n) return;
+            const i = indexAt(ev.clientX);
+            tip.textContent = `${i + 1}. ${human(events[i].event_type)}`;
+            tip.style.left = (n > 1 ? (i / (n - 1)) * 100 : 50) + "%";
+            tip.classList.add("show");
+        });
+        scrub.addEventListener("mouseleave", () => tip.classList.remove("show"));
+        scrub.addEventListener("click", (ev) => { if (n) { pause(); goTo(indexAt(ev.clientX), true); } });
+        scrub.addEventListener("keydown", (ev) => {
+            if (ev.key === "ArrowRight") { ev.preventDefault(); ev.stopPropagation(); pause(); step(1); }
+            if (ev.key === "ArrowLeft") { ev.preventDefault(); ev.stopPropagation(); pause(); step(-1); }
+        });
     }
 
-    // ── Judge vote badges ───────────────────────────────────────
-    function mapVerdict(raw) {
-        const v = (raw || "").toLowerCase().trim();
-        if (v.includes("not guilty") || v === "acquit" || v === "acquitted") return {label: "Not Guilty", guilty: false};
-        if (v.includes("guilty") || v === "convict" || v === "convicted") return {label: "Guilty", guilty: true};
-        if (v === "review" || v.includes("further review")) return {label: "Review", guilty: false};
-        return {label: raw || "Unknown", guilty: false};
+    function updateProgress() {
+        const n = events.length;
+        const p = n ? ((idx + 1) / n) * 100 : 0;
+        $("#progress-fill").style.width = (n > 1 ? Math.max(0, idx) / (n - 1) * 100 : p) + "%";
+        $("#event-counter").textContent = `${idx + 1} / ${n}`;
+        $("#scrubber").setAttribute("aria-valuenow", String(idx + 1));
+        $("#scrubber").setAttribute("aria-valuemax", String(n));
+        $$(".scrubber-dot").forEach((d, i) => {
+            d.classList.toggle("past", i < idx);
+            d.classList.toggle("current", i === idx);
+        });
     }
 
-    function showJudgeVote(evt) {
-        const actor = evt.actor || "";
-        const container = $(`#vote-${actor}`);
-        if (!container) return;
-
-        const raw = (evt.metadata && evt.metadata.vote) ||
-                    (evt.message || "");
-        const v = mapVerdict(raw);
-
-        container.innerHTML = `<span class="vote-badge ${v.guilty ? 'vote-guilty' : 'vote-not-guilty'}">
-            ${v.label}
-        </span>`;
+    // ── Status ──────────────────────────────────────────────────────
+    function setStatus(kind, text) {
+        const b = $("#status-badge");
+        b.className = `pill status-pill ${kind}`;
+        $("#status-text").textContent = text;
     }
 
-    // ── Verdict overlay ─────────────────────────────────────────
-    function showVerdict(evt) {
-        const msg = evt.message || "";
-        const raw = (evt.metadata && evt.metadata.majority_verdict) || msg;
-        const v = mapVerdict(raw);
-
-        verdictTitle.textContent = v.label.toUpperCase();
-        verdictTitle.className = `text-3xl font-bold mb-4 ${v.guilty ? 'text-red-400' : 'text-green-400'}`;
-        verdictDetail.textContent = truncate(msg, 500);
-        verdictGavel.className = "text-6xl mb-4 gavel-anim";
-        verdictOverlay.classList.remove("hidden");
-    }
-
-    // ── Event log ───────────────────────────────────────────────
-    function addLogEntry(evt, silent) {
-        const log = $("#event-log");
-        if (!log) return;
-
-        const entry = document.createElement("div");
-        entry.className = `timeline-item rounded p-2 ${silent ? 'past' : 'active'}`;
-
-        const label = formatEventType(evt.event_type);
-        const actor = evt.actor || "system";
-        const msg   = truncate(evt.message || "", 200);
-
-        entry.innerHTML = `
-            <span class="text-gray-400 text-xs">${label}</span>
-            <span class="text-cyan-400 text-xs font-bold ml-2">${capitalize(actor)}</span>
-            <p class="mt-1 text-gray-200">${escapeHtml(msg)}</p>
-        `;
-        log.appendChild(entry);
-        log.scrollTop = log.scrollHeight;
-
-        // Mark previous entries as past
-        if (!silent) {
-            log.querySelectorAll(".timeline-item.active").forEach((el, i, arr) => {
-                if (i < arr.length - 1) {
-                    el.classList.remove("active");
-                    el.classList.add("past");
-                }
-            });
-        }
-    }
-
-    // ── Full report panel ───────────────────────────────────────
-    function showReport() {
-        verdictOverlay.classList.add("hidden");
-        reportPanel.classList.remove("hidden");
-
-        let html = "";
-        const r = (typeof CASE_RESULT !== "undefined") ? CASE_RESULT : {};
-
-      try {
-
-        // Uploaded Evidence Metadata
-        if (Array.isArray(r.uploaded_evidence) && r.uploaded_evidence.length) {
-            const rows = r.uploaded_evidence.map(file => `
-                <tr class="border-b border-gray-700">
-                    <td class="py-1 px-2">${esc(file.filename || '')}</td>
-                    <td class="py-1 px-2">${esc(file.file_type || 'unknown')}</td>
-                </tr>
-            `).join('');
-            html += section("Uploaded Evidence", `
-                <table class="w-full text-sm">
-                    <thead><tr class="text-gray-400 border-b border-gray-600">
-                        <th class="text-left py-1 px-2">Filename</th>
-                        <th class="text-left py-1 px-2">File Type</th>
-                    </tr></thead>
-                    <tbody>${rows}</tbody>
-                </table>
-            `);
-        }
-
-        // Element Status Panel
-        if (r.case_analysis && r.case_analysis.evaluation_result) {
-            const er = r.case_analysis.evaluation_result;
-            const elements = er.element_details || [];
-            let elRows = "";
-            elements.forEach(el => {
-                const met = (el.status === 'satisfied') || (el.satisfied === true);
-                const icon = met ? '✔' : '✖';
-                const color = met ? 'text-green-400' : 'text-red-400';
-                const facts = (el.matching_fact_ids || []).length;
-                elRows += `<tr class="border-b border-gray-700">
-                    <td class="py-1 px-2">${esc(el.element_id || '').replace(/_/g, ' ')}</td>
-                    <td class="py-1 px-2 text-center ${color} font-bold">${icon}</td>
-                    <td class="py-1 px-2 text-center">${facts}</td>
-                    <td class="py-1 px-2 text-center">${el.weight !== undefined ? el.weight.toFixed(2) : 'N/A'}</td>
-                </tr>`;
-            });
-            html += section("Element Status — IPC " + esc(er.section || ''), `
-                <table class="w-full text-sm">
-                    <thead><tr class="text-gray-400 border-b border-gray-600">
-                        <th class="text-left py-1 px-2">Element</th>
-                        <th class="py-1 px-2">Status</th>
-                        <th class="py-1 px-2">Facts</th>
-                        <th class="py-1 px-2">Weight</th>
-                    </tr></thead>
-                    <tbody>${elRows}</tbody>
-                </table>
-                <p class="mt-2 text-sm"><strong>Section:</strong> ${esc(er.section)} &nbsp;|&nbsp;
-                <strong>Confidence:</strong> ${esc(String(er.confidence_score || r.case_analysis.burden_result?.confidence_score || 'N/A'))}</p>
-            `);
-        }
-
-        // Confidence Explanation
-        if (r.case_analysis && r.case_analysis.burden_result) {
-            const br = r.case_analysis.burden_result;
-            html += section("Confidence & Burden Analysis", `
-                <p><strong>Burden Stage:</strong> ${esc(br.burden_stage || 'N/A')}</p>
-                <p><strong>Confidence Score:</strong> ${esc(String(br.confidence_score || 'N/A'))}</p>
-                <p><strong>Burden Met:</strong> ${(br.burden_met || br.burden_stage === 'prima_facie_established') ? '<span class="text-green-400">Yes</span>' : '<span class="text-red-400">No</span>'}</p>
-                ${(br.reasoning || (br.reasoning_flags && br.reasoning_flags.length)) ? '<p class="mt-2 text-sm text-gray-300">' + esc(br.reasoning || br.reasoning_flags.join(', ')) + '</p>' : ''}
-            `);
-        }
-        if (r.case_analysis && r.case_analysis.evidence_weight_result) {
-            const ew = r.case_analysis.evidence_weight_result;
-            html += section("Evidence Weight Analysis", `
-                <p><strong>Overall Evidence Score:</strong> ${esc(String(ew.overall_evidence_score || 'N/A'))}</p>
-                ${(ew.per_element_scores || ew.element_scores) ? '<div class="mt-2">' + Object.entries(ew.per_element_scores || ew.element_scores).map(([k,v]) => 
-                    '<span class="inline-block bg-gray-800 rounded px-2 py-1 text-xs mr-1 mb-1">' + esc(k.replace(/_/g,' ')) + ': ' + (typeof v === 'number' ? v.toFixed(2) : v) + '</span>'
-                ).join('') + '</div>' : ''}
-            `);
-        }
-
-        // Research Results
-        if (r.research_data) {
-            const rd = r.research_data;
-            let resHtml = '';
-            const researchItems = Array.isArray(rd.items) ? rd.items : []
-                .concat(rd.precedents || [])
-                .concat(rd.recent_context || rd.context || []);
-            if (researchItems.length) {
-                resHtml += '<div class="space-y-3">';
-                researchItems.forEach(item => {
-                    const title = item.title || item.case_name || item.name || 'Untitled reference';
-                    const source = item.source || item.court || 'Research';
-                    const snippet = item.snippet || item.summary || '';
-                    const link = item.link || item.url || '';
-                    resHtml += '<div class="bg-gray-800 rounded p-3">';
-                    resHtml += '<p class="font-semibold text-cyan-400">' + esc(title) + '</p>';
-                    resHtml += '<p class="text-xs text-gray-400 mt-1">' + esc(source) + '</p>';
-                    if (snippet) resHtml += '<p class="text-sm text-gray-300 mt-2">' + esc(snippet) + '</p>';
-                    if (link) {
-                        const safeLink = esc(link).replace(/"/g, '&quot;');
-                        resHtml += '<a class="text-blue-400 text-sm mt-2 inline-block hover:underline" target="_blank" rel="noopener noreferrer" href="' + safeLink + '">' + esc(link) + '</a>';
-                    }
-                    resHtml += '</div>';
-                });
-                resHtml += '</div>';
-            }
-            if (!resHtml) resHtml = '<p class="text-gray-400 text-sm">' + esc(rd.message || 'Research APIs unavailable.') + '</p>';
-            html += section("Research Results", resHtml);
-        }
-
-        // Strategy Display
-        if (r.strategy_report) {
-            const sr = r.strategy_report;
-            let stratHtml = `<div class="grid grid-cols-2 gap-4 text-sm">`;
-            stratHtml += `<div><h4 class="font-semibold text-red-400 mb-1">Prosecution Strategy</h4><ul class="list-disc list-inside space-y-1">`;
-            (sr.prosecution_strategy || []).forEach(s => { stratHtml += '<li>' + esc(s) + '</li>'; });
-            stratHtml += '</ul></div>';
-            stratHtml += `<div><h4 class="font-semibold text-blue-400 mb-1">Defense Strategy</h4><ul class="list-disc list-inside space-y-1">`;
-            (sr.defense_strategy || []).forEach(s => { stratHtml += '<li>' + esc(s) + '</li>'; });
-            stratHtml += '</ul></div></div>';
-            if (sr.conviction_probability_estimate !== undefined) {
-                const prob = (sr.conviction_probability_estimate * 100).toFixed(1);
-                const color = sr.conviction_probability_estimate > 0.6 ? 'text-red-400' : sr.conviction_probability_estimate > 0.3 ? 'text-yellow-400' : 'text-green-400';
-                stratHtml += `<p class="mt-2"><strong>Conviction Probability:</strong> <span class="${color} font-bold">${prob}%</span></p>`;
-            }
-            if (sr.risk_level) {
-                stratHtml += `<p><strong>Risk Level:</strong> ${esc(sr.risk_level)}</p>`;
-            }
-            if (sr.weak_elements && sr.weak_elements.length) {
-                stratHtml += '<p class="mt-1 text-yellow-400 text-sm"><strong>Weak Elements:</strong> ' + sr.weak_elements.map(e => esc(String(e.element_id || e).replace(/_/g,' '))).join(', ') + '</p>';
-            }
-            if (sr.strong_elements && sr.strong_elements.length) {
-                stratHtml += '<p class="text-green-400 text-sm"><strong>Strong Elements:</strong> ' + sr.strong_elements.map(e => esc(String(e.element_id || e).replace(/_/g,' '))).join(', ') + '</p>';
-            }
-            html += section("Strategy Analysis", stratHtml);
-        }
-
-        // Panel Deliberation
-        if (r.panel_result) {
-            const pr = r.panel_result;
-            let panelHtml = `<p><strong>Majority Verdict:</strong> ${esc(pr.majority_verdict || 'N/A').toUpperCase()}</p>`;
-            panelHtml += `<p><strong>Vote Split:</strong> ${esc(pr.vote_split || 'N/A')}</p>`;
-            if (pr.judges && pr.judges.length) {
-                panelHtml += '<div class="mt-2 space-y-2">';
-                pr.judges.forEach(j => {
-                    const vColor = (j.provisional_verdict || '').toLowerCase() === 'convict' ? 'text-red-400' : 'text-green-400';
-                    panelHtml += `<div class="bg-gray-800 rounded p-2"><strong>${esc(j.judge_type || 'Judge')}:</strong> <span class="${vColor}">${esc(j.provisional_verdict || 'N/A')}</span>`;
-                    if (j.key_reasoning_points && j.key_reasoning_points.length) {
-                        panelHtml += '<ul class="list-disc list-inside text-xs mt-1">';
-                        j.key_reasoning_points.forEach(p => { panelHtml += '<li>' + esc(p) + '</li>'; });
-                        panelHtml += '</ul>';
-                    }
-                    panelHtml += '</div>';
-                });
-                panelHtml += '</div>';
-            }
-            html += section("Panel Deliberation", panelHtml);
-        }
-
-        // Final Judgment
-        if (r.final_judgment) {
-            html += section("Final Judgment", `<pre class="whitespace-pre-wrap text-xs">${esc(r.final_judgment)}</pre>`);
-        }
-
-        // Explanation
-        if (r.explanation) {
-            html += section("Case Explanation", `<pre class="whitespace-pre-wrap text-xs">${esc(typeof r.explanation === 'string' ? r.explanation : JSON.stringify(r.explanation, null, 2))}</pre>`);
-        }
-
-        // Guardrail Report
-        if (r.guardrail_report) {
-            const gr = r.guardrail_report;
-            const violations = gr.violations || [];
-            const isSafe = violations.length === 0 && gr.lawyer_valid !== false && gr.judgment_valid !== false;
-            let grHtml = `<p><strong>Safe:</strong> ${isSafe ? '<span class="text-green-400">Yes</span>' : '<span class="text-red-400">No</span>'}</p>`;
-            if (violations.length) {
-                grHtml += '<ul class="list-disc list-inside text-sm text-yellow-400 mt-1">';
-                violations.forEach(w => { grHtml += '<li>' + esc(w) + '</li>'; });
-                grHtml += '</ul>';
-            }
-            html += section("Guardrail Report", grHtml);
-        }
-
-        reportContent.innerHTML = html;
-      } catch (err) {
-        console.error("showReport error:", err);
-        reportContent.innerHTML = '<p class="text-red-400 font-bold">Error rendering report: ' + err.message + '</p><pre class="text-xs text-gray-400 mt-2">' + err.stack + '</pre>';
-      }
-    }
-
-    function section(title, body) {
-        return `<div class="bg-gray-900 rounded-lg p-4">
-            <h3 class="font-bold text-lg mb-2">${title}</h3>${body}
-        </div>`;
-    }
-
-    // ── Helpers ──────────────────────────────────────────────────
-    function capitalize(s) { return s ? s.charAt(0).toUpperCase() + s.slice(1).replace(/_/g, " ") : ""; }
-    function truncate(s, n) { return s.length > n ? s.slice(0, n) + "..." : s; }
-    function formatEventType(t) { return (t || "").replace(/_/g, " ").replace(/\b\w/g, c => c.toUpperCase()); }
-
-    function escapeHtml(s) {
-        const d = document.createElement("div");
-        d.appendChild(document.createTextNode(s));
-        return d.innerHTML;
-    }
-    const esc = escapeHtml;
-
-    function resetUI() {
-        setAllIdle();
+    // ── Rendering ───────────────────────────────────────────────────
+    function resetStage() {
         ACTORS.forEach(a => {
-            const sp = $(`#speech-${a}`);
-            if (sp) sp.innerHTML = "";
-            const vt = $(`#vote-${a}`);
-            if (vt) vt.innerHTML = "";
+            const c = $(`#card-${a}`);
+            if (c) c.classList.remove("speaking", "thinking", "voting", "has-vote");
+            const st = $(`#state-${a}`); if (st) st.textContent = "Idle";
+            const sp = $(`#speech-${a}`); if (sp) sp.textContent = "";
+            const vt = $(`#vote-${a}`); if (vt) vt.innerHTML = "";
         });
+        $("#event-log").innerHTML = "";
+        renderEvidenceBase();
+    }
+
+    function applyEvent(e, i) {
+        const actor = actorOf(e);
+        const sp = $(`#speech-${actor}`);
+        if (sp) sp.textContent = stripMd(e.message);
+
+        if (e.event_type === "judge_vote") {
+            const slot = $(`#vote-${e.actor}`);
+            const v = mapVerdict((e.metadata && e.metadata.vote) || e.message);
+            if (slot) slot.innerHTML = `<span class="vote ${v.cls}">${esc(v.label)}</span>`;
+            const card = $(`#card-${e.actor}`); if (card) card.classList.add("has-vote");
+        }
+        if (e.event_type === "evidence_presented") addEvidence("🧾", e.message);
+        addLog(e, i);
+    }
+
+    function highlight(e) {
+        ACTORS.forEach(a => {
+            const c = $(`#card-${a}`); if (c) c.classList.remove("speaking", "thinking", "voting");
+            const st = $(`#state-${a}`); if (st && st.textContent !== "Idle") st.textContent = "Done";
+        });
+        const actor = actorOf(e);
+        const card = $(`#card-${actor}`);
+        const state = stateFor(e.event_type);
+        if (card) {
+            card.classList.add(state);
+            const st = $(`#state-${actor}`); if (st) st.textContent = human(state);
+        }
+    }
+
+    function spotlight(e, animate) {
+        const actor = actorOf(e);
+        const spot = $("#spotlight");
+        spot.style.setProperty("--c", ACTOR_COLOR[actor] || "var(--gold)");
+        $("#spot-type").textContent = human(e.event_type);
+        $("#spot-who").textContent = ACTOR_LABEL[actor] || human(actor);
+        $("#spot-empty").classList.add("hidden");
+        const el = $("#spot-text");
+        const text = stripMd(e.message);
+        clearInterval(typeTimer);
+
+        if (!animate || speed <= 400) { el.textContent = text; return; }
+        el.textContent = "";
+        const caret = document.createElement("span"); caret.className = "caret";
+        const node = document.createTextNode("");
+        el.append(node, caret);
+        let k = 0;
+        const perChar = Math.max(6, Math.min(22, (speed * 0.6) / Math.max(1, text.length)));
+        typeTimer = setInterval(() => {
+            k += 2;
+            node.textContent = text.slice(0, k);
+            if (k >= text.length) { clearInterval(typeTimer); caret.remove(); }
+        }, perChar);
+    }
+
+    function addLog(e, i) {
         const log = $("#event-log");
-        if (log) log.innerHTML = "";
-        const board = $("#evidence-board");
-        if (board) board.innerHTML = "";
-        renderUploadedEvidence();
+        const actor = actorOf(e);
+        const b = document.createElement("button");
+        b.type = "button";
+        b.className = "log-item";
+        b.dataset.i = i;
+        b.style.setProperty("--c", ACTOR_COLOR[actor] || "var(--muted)");
+        b.innerHTML = `<div class="log-meta"><span class="who">${esc(ACTOR_LABEL[actor] || human(actor))}</span><span class="t">${esc(human(e.event_type))}</span></div><div class="log-msg">${esc(stripMd(e.message))}</div>`;
+        b.addEventListener("click", () => { pause(); goTo(i, true); });
+        log.appendChild(b);
+        $("#log-count").textContent = String(log.children.length);
     }
 
-    function renderUploadedEvidence() {
-        const board = $("#evidence-board");
-        if (!board) return;
-        const r = (typeof CASE_RESULT !== "undefined") ? CASE_RESULT : {};
-        const uploaded = Array.isArray(r.uploaded_evidence) ? r.uploaded_evidence : [];
+    function markCurrentLog() {
+        const items = $$("#event-log .log-item");
+        items.forEach(x => x.classList.remove("current"));
+        const cur = items[items.length - 1];
+        if (cur) {
+            cur.classList.add("current");
+            const box = $("#event-log");
+            box.scrollTo({ top: cur.offsetTop - box.clientHeight / 2, behavior: "smooth" });
+        }
+    }
 
-        uploaded.forEach(file => {
-            const card = document.createElement("div");
-            card.className = "evidence-card bg-gray-700 rounded p-2 text-xs";
-            const name = file.filename || "Unnamed evidence";
-            const type = file.file_type || "unknown";
-            card.textContent = `${name} (${type})`;
-            board.appendChild(card);
+    function addEvidence(icon, text) {
+        const board = $("#evidence-board");
+        const empty = board.querySelector(".empty"); if (empty) empty.remove();
+        const d = document.createElement("div");
+        d.className = "evi";
+        d.innerHTML = `<span class="ico">${icon}</span><span>${esc(clean(text))}</span>`;
+        board.appendChild(d);
+        $("#evidence-count").textContent = String(board.querySelectorAll(".evi").length);
+    }
+
+    function renderEvidenceBase() {
+        const board = $("#evidence-board");
+        board.innerHTML = "";
+        const up = Array.isArray(R.uploaded_evidence) ? R.uploaded_evidence : [];
+        up.forEach(f => {
+            const t = String(f.file_type || "");
+            const icon = t.startsWith("image") ? "🖼️" : t.startsWith("video") ? "🎞️" : "📄";
+            addEvidence(icon, `${f.filename} (${t || "file"})`);
+        });
+        if (!up.length) {
+            board.innerHTML = '<div class="empty">No evidence files attached.</div>';
+            $("#evidence-count").textContent = "0";
+        }
+    }
+
+    // Render the state for event `target` (rebuild from scratch, animate the last).
+    function goTo(target, animate) {
+        target = Math.max(-1, Math.min(events.length - 1, target));
+        resetStage();
+        for (let i = 0; i <= target; i++) applyEvent(events[i], i);
+        idx = target;
+        if (idx >= 0) {
+            highlight(events[idx]);
+            spotlight(events[idx], animate);
+            markCurrentLog();
+        } else {
+            $("#spot-type").textContent = "Court is ready";
+            $("#spot-who").textContent = "";
+            $("#spot-text").textContent = "";
+            $("#spot-empty").classList.remove("hidden");
+            $("#log-count").textContent = "0";
+            $("#event-log").innerHTML = '<div class="empty">The record is empty until the hearing starts.</div>';
+        }
+        updateProgress();
+        if (idx === events.length - 1 && events.length) setStatus("done", "Adjourned");
+    }
+
+    function step(dir) {
+        if (dir > 0 && idx >= events.length - 1) return;
+        if (dir < 0 && idx <= 0) return;
+        if (dir > 0) {
+            // incremental forward step (no full rebuild) for smooth animation
+            idx++;
+            const e = events[idx];
+            const empty = $("#event-log .empty"); if (empty) empty.remove();
+            applyEvent(e, idx);
+            highlight(e);
+            spotlight(e, true);
+            markCurrentLog();
+            updateProgress();
+            if (e.event_type === "verdict_delivered" && playing && !verdictShown) {
+                verdictShown = true;
+                pause();
+                setTimeout(showVerdict, 700);
+            }
+            if (idx === events.length - 1) { pause(); setStatus("done", "Adjourned"); }
+        } else {
+            goTo(idx - 1, false);
+        }
+    }
+
+    // ── Playback ────────────────────────────────────────────────────
+    function play() {
+        if (!events.length) return;
+        if (idx >= events.length - 1) { goTo(-1); verdictShown = false; }
+        playing = true;
+        $("#btn-play").innerHTML = '❚❚ <span class="label">Pause</span>';
+        setStatus("live", "In session");
+        step(1);
+        schedule();
+    }
+    function schedule() {
+        clearInterval(timer);
+        if (!playing) return;
+        timer = setInterval(() => {
+            if (idx < events.length - 1) step(1); else pause();
+        }, speed);
+    }
+    function pause() {
+        const was = playing;
+        playing = false;
+        clearInterval(timer);
+        $("#btn-play").innerHTML = '▶ <span class="label">Play</span>';
+        if (was && idx < events.length - 1) setStatus("paused", "Recess");
+    }
+    function toggle() { playing ? pause() : play(); }
+    function restart() { pause(); verdictShown = false; closeModals(); goTo(-1); setStatus("ready", "Ready"); }
+    function skipToVerdict() {
+        pause();
+        const vi = events.findIndex(e => e.event_type === "verdict_delivered");
+        goTo(vi >= 0 ? vi : events.length - 1, false);
+        verdictShown = true;
+        showVerdict();
+    }
+
+    // ── Verdict ─────────────────────────────────────────────────────
+    function showVerdict() {
+        const pr = R.panel_result || {};
+        const ve = events.find(e => e.event_type === "verdict_delivered");
+        const raw = (ve && ve.metadata && ve.metadata.majority_verdict) || pr.majority_verdict || (ve && ve.message);
+        const v = mapVerdict(raw);
+        const title = $("#verdict-title");
+        title.textContent = v.label;
+        title.className = `verdict-title ${v.cls}`;
+        const glow = { guilty: "rgba(240,97,109,.55)", innocent: "rgba(69,212,154,.5)", review: "rgba(245,184,74,.5)" }[v.cls];
+        $(".verdict-card").style.setProperty("--vc", glow);
+        $("#verdict-detail").textContent = pr.vote_split ? `Vote: ${fmtSplit(pr.vote_split)}` + (R.case_analysis && R.case_analysis.evaluation_result ? ` · ${R.case_analysis.evaluation_result.section}` : "") : stripMd(ve && ve.message);
+
+        const judges = pr.judges || [];
+        $("#verdict-votes").innerHTML = judges.map(j => {
+            const jv = mapVerdict(j.provisional_verdict);
+            const name = ACTOR_LABEL[JUDGE_KEY[j.judge_type]] || human(j.judge_type);
+            return `<div class="jv"><div class="n">${esc(name)}</div><span class="vote ${jv.cls}">${esc(jv.label)}</span></div>`;
+        }).join("");
+
+        const p = (R.strategy_report || {}).conviction_probability_estimate;
+        const gauge = $("#verdict-gauge");
+        if (typeof p === "number") {
+            gauge.classList.remove("hidden");
+            $("#gauge-val").textContent = pct(p);
+            const fill = $("#gauge-fill");
+            fill.style.width = "0";
+            fill.style.backgroundPosition = "0 0";
+            requestAnimationFrame(() => requestAnimationFrame(() => { fill.style.width = Math.round(p * 100) + "%"; }));
+        } else gauge.classList.add("hidden");
+
+        $("#verdict-overlay").classList.remove("hidden");
+        const g = $("#verdict-gavel"); g.style.animation = "none"; void g.offsetWidth; g.style.animation = "";
+        $("#btn-details").focus();
+    }
+
+    // ── Report ──────────────────────────────────────────────────────
+    function sec(title, body) { return `<section class="rsec"><h3>${title}</h3>${body}</section>`; }
+    function list(items) { return items && items.length ? `<ul class="list">${items.map(x => `<li>${esc(clean(x))}</li>`).join("")}</ul>` : '<p class="faint">None.</p>'; }
+    function statBox(k, v) { return `<div class="stat"><div class="k">${esc(k)}</div><div class="v">${esc(v)}</div></div>`; }
+
+    function md(src) {
+        const lines = String(src || "").split(/\r?\n/);
+        let html = "", inList = false;
+        const inline = (s) => esc(s).replace(/\*\*(.+?)\*\*/g, "<strong>$1</strong>").replace(/`(.+?)`/g, "<code>$1</code>");
+        lines.forEach(l => {
+            const t = l.trim();
+            if (/^[-*]\s+/.test(t)) { if (!inList) { html += "<ul>"; inList = true; } html += `<li>${inline(t.replace(/^[-*]\s+/, ""))}</li>`; return; }
+            if (inList) { html += "</ul>"; inList = false; }
+            if (/^#{1,6}\s/.test(t)) { const lvl = Math.min(4, t.match(/^#+/)[0].length + 1); html += `<h${lvl}>${inline(t.replace(/^#+\s*/, ""))}</h${lvl}>`; }
+            else if (t) html += `<p>${inline(t)}</p>`;
+        });
+        if (inList) html += "</ul>";
+        return html;
+    }
+
+    const REPORT_TABS = [
+        ["overview", "Overview", reportOverview],
+        ["elements", "Elements", reportElements],
+        ["panel", "Panel", reportPanel],
+        ["strategy", "Strategy", reportStrategy],
+        ["research", "Research", reportResearch],
+        ["judgment", "Judgment", reportJudgment],
+        ["explanation", "Explanation", reportExplanation],
+        ["guardrails", "Guardrails", reportGuardrails],
+    ];
+
+    function reportOverview() {
+        const ca = R.case_analysis || {}, er = ca.evaluation_result || {}, br = ca.burden_result || {}, ew = ca.evidence_weight_result || {}, pr = R.panel_result || {}, sr = R.strategy_report || {};
+        const v = mapVerdict(pr.majority_verdict);
+        let h = sec("⚖ Summary", `<div class="kv">
+            ${statBox("Section", er.section || "—")}
+            ${statBox("Verdict", v.label)}
+            ${statBox("Vote split", fmtSplit(pr.vote_split))}
+            ${statBox("Burden stage", human(br.burden_stage || "—"))}
+            ${statBox("Confidence", pct(br.confidence_score))}
+            ${statBox("Evidence score", pct(ew.overall_evidence_score))}
+            ${statBox("Conviction est.", pct(sr.conviction_probability_estimate))}
+            ${statBox("Risk level", human(sr.risk_level || "—"))}
+        </div>`);
+        const ex = (ca.exception_result || {}).exceptions_detected || [];
+        if (ex.length) {
+            h += sec("🛡 Exceptions raised", `<table class="table"><thead><tr><th>Exception</th><th>Statement</th><th>Supported</th></tr></thead><tbody>${ex.map(x => `<tr><td>${esc(human(x.tag))}</td><td>${esc(clean(x.statement))}</td><td><span class="status-tag ${x.supported ? "ok" : "bad"}">${x.supported ? "Yes" : "No"}</span></td></tr>`).join("")}</tbody></table>`);
+        }
+        const up = R.uploaded_evidence || [];
+        if (up.length) h += sec("📎 Uploaded evidence", `<table class="table"><thead><tr><th>File</th><th>Type</th></tr></thead><tbody>${up.map(f => `<tr><td>${esc(f.filename)}</td><td>${esc(f.file_type)}</td></tr>`).join("")}</tbody></table>`);
+        return h;
+    }
+
+    function reportElements() {
+        const ca = R.case_analysis || {}, er = ca.evaluation_result || {}, ew = ca.evidence_weight_result || {};
+        const scores = ew.element_scores || ew.per_element_scores || {};
+        const rows = (er.element_details || []).map(el => {
+            const st = String(el.status || (el.satisfied ? "satisfied" : "not satisfied"));
+            const cls = st === "satisfied" ? "ok" : st === "partial" || st === "conflicted" ? "mid" : "bad";
+            const sc = scores[el.element_id];
+            return `<tr>
+                <td><strong>${esc(el.description || human(el.element_id))}</strong>${el.required === false ? ' <span class="faint">(optional)</span>' : ""}<div class="faint" style="font-size:12px">${esc((el.confidence_notes || []).join(" "))}</div></td>
+                <td><span class="status-tag ${cls}">${esc(human(st))}</span></td>
+                <td>${(el.matching_fact_ids || []).length}</td>
+                <td>${typeof sc === "number" ? `<div class="bar"><span style="width:${Math.round(sc * 100)}%"></span></div>` : '<span class="faint">—</span>'}</td>
+            </tr>`;
+        }).join("");
+        let h = sec(`📋 Elements of ${esc(er.section || "the offence")}`, rows ? `<div style="overflow-x:auto"><table class="table"><thead><tr><th>Element</th><th>Status</th><th>Facts</th><th>Evidence</th></tr></thead><tbody>${rows}</tbody></table></div>` : '<p class="faint">No element data.</p>');
+        const br = ca.burden_result || {};
+        h += sec("⚖ Burden of proof", `<div class="kv">
+            ${statBox("Stage", human(br.burden_stage || "—"))}
+            ${statBox("Required met", br.required_elements_total != null ? `${br.required_elements_satisfied}/${br.required_elements_total}` : "—")}
+            ${statBox("Conflicted", br.conflicted_elements != null ? String(br.conflicted_elements) : "—")}
+            ${statBox("Confidence", pct(br.confidence_score))}
+        </div>${(br.reasoning_flags || []).length ? `<div style="margin-top:12px">${list(br.reasoning_flags)}</div>` : ""}`);
+        return h;
+    }
+
+    function reportPanel() {
+        const pr = R.panel_result || {};
+        const v = mapVerdict(pr.majority_verdict);
+        let h = sec("🏛 Majority", `<div class="kv">${statBox("Verdict", v.label)}${statBox("Vote split", fmtSplit(pr.vote_split))}</div>`);
+        (pr.judges || []).forEach(j => {
+            const jv = mapVerdict(j.provisional_verdict);
+            const name = ACTOR_LABEL[JUDGE_KEY[j.judge_type]] || human(j.judge_type);
+            h += sec(`${esc(name)} <span class="vote ${jv.cls}" style="margin-left:auto">${esc(jv.label)}</span>`,
+                `${list(j.key_reasoning_points)}${(j.concerns || []).length ? `<p class="faint" style="margin-top:10px;font-size:12px;text-transform:uppercase;letter-spacing:.08em">Concerns</p>${list(j.concerns)}` : ""}`);
+        });
+        const lo = R.lawyer_output || {};
+        if (lo.prosecution_arguments || lo.defense_arguments) {
+            h += sec("🗣 Arguments heard", `<div class="two-col"><div><p style="color:#ff8a65;font-weight:600;margin-bottom:6px">Prosecution</p>${list(lo.prosecution_arguments)}</div><div><p style="color:var(--blue);font-weight:600;margin-bottom:6px">Defence</p>${list(lo.defense_arguments)}</div></div>`);
+        }
+        return h;
+    }
+
+    function reportStrategy() {
+        const sr = R.strategy_report || {};
+        const p = sr.conviction_probability_estimate;
+        let h = sec("🎯 Outlook", `<div class="kv">${statBox("Conviction est.", pct(p))}${statBox("Risk level", human(sr.risk_level || "—"))}</div>${typeof p === "number" ? `<div class="gauge-bar" style="margin-top:14px"><span style="width:${Math.round(p * 100)}%"></span></div>` : ""}`);
+        h += sec("♟ Strategy", `<div class="two-col"><div><p style="color:#ff8a65;font-weight:600;margin-bottom:6px">Prosecution</p>${list(sr.prosecution_strategy)}</div><div><p style="color:var(--blue);font-weight:600;margin-bottom:6px">Defence</p>${list(sr.defense_strategy)}</div></div>`);
+        const nm = (arr) => (arr || []).map(e => human(e.element_id || e));
+        h += sec("📊 Element strength", `<div class="two-col"><div><p style="color:var(--green);font-weight:600;margin-bottom:6px">Strong</p>${list(nm(sr.strong_elements))}</div><div><p style="color:var(--amber);font-weight:600;margin-bottom:6px">Weak</p>${list(nm(sr.weak_elements))}</div></div>`);
+        return h;
+    }
+
+    function reportResearch() {
+        const rd = R.research_data || {};
+        const items = (Array.isArray(rd.items) ? rd.items : []).concat(rd.precedents || [], rd.recent_context || rd.context || []);
+        if (!items.length) return sec("🔎 Research", `<p class="muted">${esc(rd.message || "No precedents or recent context were found for this case. Add SERPER_API_KEY / KANOON_API_KEY to enable live research.")}</p>`);
+        return sec("🔎 Precedents & context", items.map(it => {
+            const title = it.title || it.case_name || it.name || "Untitled reference";
+            const link = it.link || it.url || "";
+            const safe = /^https?:\/\//i.test(link) ? link : "";
+            const inner = `<div class="t">${esc(title)}</div><div class="s">${esc(it.source || it.court || "Research")}</div>${it.snippet || it.summary ? `<div class="x">${esc(it.snippet || it.summary)}</div>` : ""}`;
+            return safe ? `<a class="ref" href="${esc(safe)}" target="_blank" rel="noopener noreferrer">${inner}</a>` : `<div class="ref">${inner}</div>`;
+        }).join(""));
+    }
+
+    function reportJudgment() {
+        return R.final_judgment ? sec("📜 Final judgment", `<pre class="mono">${esc(R.final_judgment)}</pre>`) : sec("📜 Final judgment", '<p class="faint">Not available.</p>');
+    }
+
+    function reportExplanation() {
+        const x = R.explanation;
+        if (!x) return sec("💡 Explanation", '<p class="faint">Not available.</p>');
+        return sec("💡 Explanation", typeof x === "string" ? `<div class="prose">${md(x)}</div>` : `<pre class="mono">${esc(JSON.stringify(x, null, 2))}</pre>`);
+    }
+
+    function reportGuardrails() {
+        const g = R.guardrail_report || {};
+        const vio = g.violations || [];
+        const ok = !vio.length && g.lawyer_valid !== false && g.judgment_valid !== false;
+        const yes = (b) => b === undefined ? "—" : b ? "Valid" : "Invalid";
+        return sec(`🛡 Guardrails <span class="status-tag ${ok ? "ok" : "mid"}" style="margin-left:auto">${ok ? "All checks passed" : `${vio.length} issue(s)`}</span>`,
+            `<div class="kv">${statBox("Lawyer output", yes(g.lawyer_valid))}${statBox("Judgment", yes(g.judgment_valid))}${statBox("Citations", yes(g.citation_valid))}</div>
+             ${vio.length ? `<div style="margin-top:14px">${list(vio)}</div>` : ""}`);
+    }
+
+    function openReport(tab) {
+        closeModals();
+        const tabs = $("#report-tabs");
+        tabs.innerHTML = REPORT_TABS.map(([id, label]) => `<button type="button" class="tab" role="tab" data-tab="${id}" aria-selected="false">${label}</button>`).join("");
+        $$(".tab", tabs).forEach(b => b.addEventListener("click", () => showTab(b.dataset.tab)));
+        $("#report-panel").classList.remove("hidden");
+        document.body.style.overflow = "hidden";
+        showTab(tab || "overview");
+    }
+    function showTab(id) {
+        $$("#report-tabs .tab").forEach(b => b.setAttribute("aria-selected", String(b.dataset.tab === id)));
+        const t = REPORT_TABS.find(x => x[0] === id) || REPORT_TABS[0];
+        let html;
+        try { html = t[2](); } catch (err) { console.error(err); html = sec("Error", `<p class="muted">Could not render this section: ${esc(err.message)}</p>`); }
+        const body = $("#report-content");
+        body.innerHTML = html;
+        body.scrollTop = 0;
+    }
+    function closeModals() {
+        $("#verdict-overlay").classList.add("hidden");
+        $("#report-panel").classList.add("hidden");
+        document.body.style.overflow = "";
+    }
+
+    function printReport() {
+        // Render every tab so the printout contains the full report.
+        $("#report-content").innerHTML = REPORT_TABS.map(t => { try { return t[2](); } catch (e) { return ""; } }).join("");
+        window.print();
+    }
+
+    function downloadJson() {
+        const blob = new Blob([JSON.stringify(R, null, 2)], { type: "application/json" });
+        const a = document.createElement("a");
+        const sectionName = ((R.case_analysis || {}).evaluation_result || {}).section || "case";
+        a.href = URL.createObjectURL(blob);
+        a.download = `courtmind-${String(sectionName).replace(/\W+/g, "-").toLowerCase()}.json`;
+        document.body.appendChild(a); a.click(); a.remove();
+        setTimeout(() => URL.revokeObjectURL(a.href), 1000);
+    }
+
+    // ── Wiring ──────────────────────────────────────────────────────
+    function bind() {
+        $("#btn-play").addEventListener("click", toggle);
+        $("#btn-next").addEventListener("click", () => { pause(); step(1); });
+        $("#btn-prev").addEventListener("click", () => { pause(); step(-1); });
+        $("#btn-restart").addEventListener("click", restart);
+        $("#btn-skip").addEventListener("click", skipToVerdict);
+        $$("#speed button").forEach(b => b.addEventListener("click", () => {
+            speed = parseInt(b.dataset.speed, 10);
+            $$("#speed button").forEach(x => x.setAttribute("aria-pressed", String(x === b)));
+            schedule();
+        }));
+        $("#btn-replay").addEventListener("click", () => { closeModals(); restart(); play(); });
+        $("#btn-details").addEventListener("click", () => openReport("overview"));
+        $("#btn-report-top").addEventListener("click", () => { pause(); openReport("overview"); });
+        $("#btn-close-report").addEventListener("click", closeModals);
+        $("#btn-print").addEventListener("click", printReport);
+        $("#btn-download").addEventListener("click", downloadJson);
+        $("#verdict-overlay").addEventListener("click", (e) => { if (e.target.id === "verdict-overlay") closeModals(); });
+        $("#report-panel").addEventListener("click", (e) => { if (e.target.id === "report-panel") closeModals(); });
+
+        document.addEventListener("keydown", (e) => {
+            if (e.target.closest("input, textarea, select")) return;
+            const modalOpen = !$("#verdict-overlay").classList.contains("hidden") || !$("#report-panel").classList.contains("hidden");
+            if (e.key === "Escape") { closeModals(); return; }
+            if (modalOpen) return;
+            if (e.key === " " && !e.target.closest("button")) { e.preventDefault(); toggle(); }
+            else if (e.key === "ArrowRight") { pause(); step(1); }
+            else if (e.key === "ArrowLeft") { pause(); step(-1); }
+            else if (e.key === "r" || e.key === "R") restart();
+            else if (e.key === "v" || e.key === "V") skipToVerdict();
         });
     }
 
-    // ── Boot ────────────────────────────────────────────────────
-    document.addEventListener("DOMContentLoaded", init);
+    function init() {
+        renderHeader();
+        buildScrubber();
+        bind();
+        goTo(-1);
+        setStatus("ready", "Ready");
+        if (!events.length) {
+            $("#spot-empty").textContent = "No simulation events were produced for this case.";
+        } else {
+            // Start automatically after a short pause so the page feels alive.
+            setTimeout(() => { if (idx === -1 && !playing) play(); }, 900);
+        }
+    }
+
+    if (document.readyState === "loading") document.addEventListener("DOMContentLoaded", init);
+    else init();
 })();

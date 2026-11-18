@@ -154,8 +154,8 @@ class ExplanationEngine:
         lines.append("")
 
         for j in judges:
-            philosophy = j.get("philosophy", "?")
-            j_verdict = j.get("verdict", "?")
+            philosophy = j.get("philosophy") or j.get("judge_type", "?")
+            j_verdict = j.get("verdict") or j.get("provisional_verdict", "?")
             lines.append(f"- **{philosophy}** judge: {j_verdict}")
         lines.append("")
 

@@ -564,7 +564,6 @@ result = run_full_simulation(fm, auto_detect=True)
 print(result["case_analysis"]["evaluation_result"]["section"])         # "302 IPC"
 print(result["case_analysis"]["burden_result"]["burden_stage"])        # "prima_facie_established"
 print(result["panel_result"]["majority_verdict"])                      # "convict"
-print(result["panel_result"]["vote_split"])                            # "3-0"
 print(result["guardrail_report"]["violations"])                        # []
 print(result["strategy_report"]["risk_level"])                         # "high"
 print(result["strategy_report"]["conviction_probability_estimate"])    # 0.76
@@ -619,3 +618,10 @@ for ev in events["events"][:3]:
 
 
 ---
+
+---
+
+## 🚀 Deployment
+
+The web app deploys to **Render (free tier)** straight from GitHub using the included `render.yaml` blueprint.
+See **[DEPLOY.md](DEPLOY.md)** for the step-by-step guide.

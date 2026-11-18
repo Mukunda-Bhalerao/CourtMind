@@ -3,206 +3,200 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>CourtMind — AI Legal Courtroom Simulation</title>
-    <script src="https://cdn.tailwindcss.com"></script>
-    <link rel="stylesheet" href="/static/styles.css">
-
-<link rel="preconnect" href="https://fonts.googleapis.com">
-<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-
-<link href="https://fonts.googleapis.com/css2?family=Cinzel:wght@400;600;700&family=Cormorant+Garamond:wght@400;500;600&display=swap" rel="stylesheet">
-<style>
-    body.ancient-body {
-        background:
-            radial-gradient(circle at 20% 15%, rgba(227, 193, 111, 0.12), transparent 26%),
-            radial-gradient(circle at 80% 12%, rgba(121, 63, 31, 0.18), transparent 24%),
-            linear-gradient(180deg, rgba(13, 8, 6, 0.86), rgba(6, 4, 3, 0.96)),
-            linear-gradient(135deg, #140d0a 0%, #251610 38%, #120b09 100%) !important;
-        color: #f4e8cc !important;
-        min-height: 100vh;
-    }
-
-    .royal-header,
-    .court-stage,
-    .court-ritual-form,
-    .court-panel {
-        background-color: transparent;
-    }
-
-    .court-panel,
-    .parchment-panel {
-        background: linear-gradient(180deg, rgba(241, 227, 196, 0.97), rgba(214, 188, 143, 0.95)) !important;
-        border: 1px solid rgba(139, 94, 52, 0.9) !important;
-        color: #2a1a11 !important;
-        box-shadow:
-            0 14px 34px rgba(0, 0, 0, 0.48),
-            inset 0 0 22px rgba(70, 40, 18, 0.08),
-            inset 0 1px 0 rgba(255, 246, 222, 0.6) !important;
-    }
-
-    .royal-title {
-        color: #f6ddb0 !important;
-    }
-
-    .royal-button-primary,
-    #btn-analyze {
-        background: linear-gradient(180deg, #e1bc68 0%, #a66d2f 100%) !important;
-        color: #fff6de !important;
-        border-color: rgba(255, 231, 175, 0.7) !important;
-    }
-
-    .royal-file-drop,
-    .ancient-upload-box {
-        background: linear-gradient(180deg, rgba(58, 38, 28, 0.96), rgba(28, 17, 12, 0.98)) !important;
-        border-color: rgba(227, 193, 111, 0.74) !important;
-        color: #f8ecd2 !important;
-    }
-
-    .royal-input,
-    .royal-file-input,
-    textarea.royal-input,
-    select.royal-select {
-        background: rgba(20, 12, 9, 0.9) !important;
-        color: #f8ecd2 !important;
-        border-color: rgba(227, 193, 111, 0.28) !important;
-    }
-</style>
+    <title>CourtMind — AI Courtroom Simulation</title>
+    <meta name="description" content="CourtMind simulates an Indian criminal trial: it extracts facts from a case narrative, evaluates IPC elements, and runs a three-judge panel to a verdict.">
+    <meta name="theme-color" content="#0a0a0f">
+    <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>⚖️</text></svg>">
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:wght@500;600;700&family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="/static/styles.css?v={{ version }}">
 </head>
+<body>
 
-<body class="ancient-body min-h-screen flex flex-col">
-
-    <!-- Header -->
-    <div class="royal-header p-6 shadow-2xl">
-        <h1 class="text-4xl font-bold text-center royal-title">
-    ⚖ Royal Court of Justice
-</h1>
-        <p class="text-center royal-subtitle mt-2">
-            Deterministic legal reasoning &bull; Agent-based simulation &bull; Indian Penal Code
-        </p>
+<nav class="nav">
+    <div class="container nav-inner">
+        <a href="/" class="brand"><span class="brand-mark"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 3v18M7 21h10M4 7h16M4 7l-3 7a4 3 0 0 0 6 0L4 7zM20 7l-3 7a4 3 0 0 0 6 0l-3-7z"/></svg></span><span class="brand-name">CourtMind</span></a>
+        <div class="nav-links">
+            <a href="#how">How it works</a>
+            <a href="#sections">IPC sections</a>
+            <a href="#start" class="btn btn-sm btn-primary" style="color:#1d1405">Start a case</a>
+        </div>
     </div>
+</nav>
 
-    <div class="court-stage flex-1 flex items-center justify-center p-8 mx-4 my-6">
-        <div class="w-full max-w-2xl">
+<header class="hero container">
+    <svg class="hero-scales" viewBox="0 0 120 120" fill="none" aria-hidden="true">
+        <defs>
+            <linearGradient id="g" gradientUnits="userSpaceOnUse" x1="0" y1="0" x2="120" y2="120">
+                <stop offset="0" stop-color="#f6d79a"/><stop offset="1" stop-color="#a87632"/>
+            </linearGradient>
+        </defs>
+        <path d="M60 22 V100" stroke="url(#g)" stroke-width="4" stroke-linecap="round"/>
+        <path d="M40 104 H80" stroke="url(#g)" stroke-width="5" stroke-linecap="round"/>
+        <circle cx="60" cy="18" r="6" fill="url(#g)"/>
+        <g class="beam">
+            <path d="M18 38 H102" stroke="url(#g)" stroke-width="4" stroke-linecap="round"/>
+            <g class="pan-l">
+                <path d="M24 40 L12 66 M24 40 L36 66" stroke="url(#g)" stroke-width="1.6"/>
+                <path d="M8 66 Q24 80 40 66 Z" fill="url(#g)"/>
+            </g>
+            <g class="pan-r">
+                <path d="M96 40 L84 66 M96 40 L108 66" stroke="url(#g)" stroke-width="1.6"/>
+                <path d="M80 66 Q96 80 112 66 Z" fill="url(#g)"/>
+            </g>
+        </g>
+    </svg>
+    <span class="eyebrow" style="margin-top:22px">AI courtroom · Indian Penal Code</span>
+    <h1>Put the case <span class="gold-text">on trial</span>.</h1>
+    <p class="lead">Give CourtMind a case narrative. It pulls out the facts, tests each element of the offence, hears both sides, and has a three-judge panel deliver a verdict you can replay step by step.</p>
+    <div class="hero-badges">
+        <span class="pill"><span class="dot" style="color:var(--green)"></span>Rule-based legal reasoning</span>
+        <span class="pill"><span class="dot" style="color:var(--blue)"></span>Three-judge panel</span>
+        <span class="pill"><span class="dot" style="color:var(--violet)"></span>Animated courtroom replay</span>
+    </div>
+</header>
 
-            <form id="case-form" method="post" action="/analyze" enctype="multipart/form-data" class="court-ritual-form space-y-6">
+<main class="container" id="start">
+    <form id="case-form" method="post" action="/analyze" enctype="multipart/form-data" class="workspace">
 
-                <!-- Upload Section -->
-                <div class="court-panel p-8 rounded-xl shadow-lg text-center">
-                    <div class="text-5xl mb-4">&#128221;</div>
-                    <h2 class="text-2xl font-bold mb-2">Upload Case File</h2>
-                    <p class="text-gray-700 mb-6">
-                        Supported formats: <strong>.txt</strong>, <strong>.pdf</strong>, <strong>.docx</strong>
-                    </p>
+        <section class="card card-pad">
+            {% if error %}
+            <div class="alert" role="alert">
+                <span aria-hidden="true">⚠️</span>
+                <div><strong>Something went wrong.</strong><br>{{ error }}</div>
+            </div>
+            {% endif %}
 
-<label class="block cursor-pointer ancient-upload-box royal-file-drop rounded-lg p-8 transition">                        <input type="file" name="file" id="case-file-input" accept=".txt,.pdf,.docx"
-                            class="hidden" required>
-                        <div id="file-label" class="text-gray-300">
-                            <span class="text-4xl block mb-2">&#128194;</span>
-                            Click to select a case file<br>
-                            <span class="text-sm text-gray-500">or drag and drop</span>
-                        </div>
-                    </label>
-                    <div id="upload-status" class="text-sm mt-3"></div>
-                </div>
-
-                <!-- OR divider -->
-                <div class="flex items-center gap-4">
-                    <hr class="flex-1 border-gray-700">
-                    <span class="text-gray-500 text-sm">OR paste case text</span>
-                    <hr class="flex-1 border-gray-700">
-                </div>
-
-                <!-- Text Input Fallback -->
-                <div class="court-panel p-6 rounded-xl shadow-lg">
-                    <label class="block text-lg font-semibold mb-2">Case Narrative</label>
-                    <textarea name="case_text" id="case-text-input" rows="8" placeholder="Paste the full case narrative here..."
-                    class="royal-input w-full p-4 bg-gray-700 rounded-lg border border-gray-600 focus:border-amber-500 focus:outline-none resize-y"></textarea>
-                </div>
-
-                <!-- Evidence Attachments -->
-                <div class="court-panel p-6 rounded-xl shadow-lg">
-                    <label class="block text-lg font-semibold mb-2">Evidence Attachments</label>
-                    <p class="text-gray-700 text-sm mb-3">
-                        Optional: images, videos, or PDF files. File contents are not analyzed.
-                    </p>
-                    <input type="file" name="evidence_files" id="evidence-files-input" accept="image/*,video/*,.pdf,application/pdf"
-                        multiple class="royal-file-input block w-full text-sm text-gray-300 file:mr-4 file:rounded-lg file:border-0 file:bg-gray-700 file:px-4 file:py-2 file:text-gray-200 hover:file:bg-gray-600">
-                    <div id="evidence-file-list" class="text-sm text-gray-700 mt-3"></div>
-                </div>
-
-                <!-- Analyze Button -->
-                <button type="submit" id="btn-analyze"
-                    class="royal-button royal-button-primary w-full bg-amber-800 hover:bg-amber-700 px-6 py-4 rounded-xl font-bold text-xl transition shadow-lg">
-                    &#9878; Analyze Case
-                </button>
-            </form>
-
-            <!-- Supported Sections -->
-            <div class="mt-8 text-center">
-                <p class="text-gray-500 text-sm mb-3">Currently supported IPC sections:</p>
-                <div class="flex justify-center gap-3">
-                    <span class="ancient-tag-red px-3 py-1 rounded-full text-sm">302 — Murder</span>
-                    <span class="ancient-tag-orange px-3 py-1 rounded-full text-sm">304 — Culpable Homicide</span>
-                    <span class="ancient-tag-yellow px-3 py-1 rounded-full text-sm">420 — Cheating</span>
-                    <span class="ancient-tag-green px-3 py-1 rounded-full text-sm">323 — Causing Hurt</span>
+            <div class="panel-title">
+                <h2><span class="step-num">1</span>Case narrative</h2>
+                <div class="tabs" role="tablist" aria-label="Case input method">
+                    <button type="button" class="tab" role="tab" id="tab-paste" aria-selected="true" aria-controls="pane-paste">✍️ Paste</button>
+                    <button type="button" class="tab" role="tab" id="tab-upload" aria-selected="false" aria-controls="pane-upload">📄 Upload</button>
                 </div>
             </div>
 
+            <div id="pane-paste" role="tabpanel" aria-labelledby="tab-paste">
+                <textarea name="case_text" id="case-text-input" class="textarea"
+                    placeholder="Victim narrative: …&#10;&#10;Accused narrative: …&#10;&#10;Evidence: weapon recovered, eyewitness testimony, medical report …"></textarea>
+                <div class="field-meta">
+                    <span id="text-count">0 words</span>
+                    <span>Tip: pick a sample case on the right to see how it works.</span>
+                </div>
+            </div>
+
+            <div id="pane-upload" role="tabpanel" aria-labelledby="tab-upload" class="hidden">
+                <label class="drop" id="case-drop">
+                    <input type="file" name="file" id="case-file-input" accept=".txt,.pdf,.docx">
+                    <div id="case-drop-empty">
+                        <div class="drop-icon" style="margin:0 auto 12px">
+                            <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M12 16V4M7 9l5-5 5 5"/><path d="M4 16v3a1 1 0 0 0 1 1h14a1 1 0 0 0 1-1v-3"/></svg>
+                        </div>
+                        <div class="drop-title">Drop a case file here</div>
+                        <div class="drop-sub">or click to browse · .txt, .pdf, .docx · up to 10 MB</div>
+                    </div>
+                    <div id="case-drop-chosen" class="file-chosen hidden">
+                        <div class="drop-icon">📄</div>
+                        <div>
+                            <div class="name" id="case-file-name"></div>
+                            <div class="drop-sub" id="case-file-size"></div>
+                        </div>
+                        <button type="button" class="btn btn-sm" id="case-file-clear">Remove</button>
+                    </div>
+                </label>
+            </div>
+
+            <div class="panel-title" style="margin-top:28px">
+                <h2><span class="step-num">2</span>Evidence attachments <span class="faint" style="font-weight:400;font-size:14px">· optional</span></h2>
+            </div>
+            <label class="drop evidence-drop" id="evidence-drop">
+                <input type="file" name="evidence_files" id="evidence-files-input" accept="image/*,video/*,.pdf,application/pdf" multiple>
+                <div class="drop-icon">📎</div>
+                <div>
+                    <div class="drop-title" style="font-size:14px">Add photos, videos or PDFs</div>
+                    <div class="drop-sub">Listed in the evidence archive. File contents are not analysed.</div>
+                </div>
+            </label>
+            <div class="chips" id="evidence-chips"></div>
+
+            <div class="submit-row">
+                <span class="hint">Press <kbd>Ctrl</kbd> + <kbd>Enter</kbd> to begin</span>
+                <button type="submit" id="btn-analyze" class="btn btn-primary btn-lg">⚖ Begin the trial</button>
+            </div>
+        </section>
+
+        <aside class="card card-pad">
+            <div class="panel-title"><h2>Try a sample case</h2></div>
+            <div class="sample-list">
+                {% for s in samples %}
+                <button type="button" class="sample" data-sample="{{ s.id }}">
+                    <span class="sample-sec {{ 'sec-' ~ s.section if s.section in ['302','304','420','323'] else 'sec-x' }}">{{ s.section if s.section != '—' else '?' }}</span>
+                    <span>
+                        <span class="sample-title">{{ s.title }}</span><br>
+                        <span class="sample-blurb">{{ s.blurb }}</span>
+                    </span>
+                </button>
+                {% else %}
+                <p class="muted">No sample cases found.</p>
+                {% endfor %}
+            </div>
+            <p class="faint" style="font-size:12.5px;margin-top:14px">Picking a sample fills in the narrative. You can edit it before you start.</p>
+        </aside>
+    </form>
+
+    <section class="section" id="how">
+        <div class="section-head reveal">
+            <span class="eyebrow">How it works</span>
+            <h2>From narrative to verdict</h2>
+            <p>The language model only extracts facts. Every legal judgement after that follows fixed rules, so the same case always gets the same reasoning.</p>
         </div>
+        <div class="grid-4">
+            <div class="card feature reveal"><div class="num">01</div><h3>Fact extraction</h3><p>Acts, intent, harm, context, evidence and claimed defences are pulled from the narrative.</p></div>
+            <div class="card feature reveal"><div class="num">02</div><h3>Element test</h3><p>The likely IPC section is detected and each required element is checked against the facts.</p></div>
+            <div class="card feature reveal"><div class="num">03</div><h3>Burden & evidence</h3><p>Evidence is weighted and the burden of proof is assessed, including exceptions such as self-defence.</p></div>
+            <div class="card feature reveal"><div class="num">04</div><h3>Panel verdict</h3><p>Textualist, evidence-focused and burden-strict judges vote, and the majority decides.</p></div>
+        </div>
+    </section>
+
+    <section class="section" id="sections" style="padding-top:8px">
+        <div class="section-head reveal">
+            <span class="eyebrow">Coverage</span>
+            <h2>Supported IPC sections</h2>
+            <p>Click a section to load a sample case for it.</p>
+        </div>
+        <div class="grid-4">
+            <button type="button" class="card ipc-card reveal" data-sample="case_1_murder_302"><div class="code" style="color:var(--red)">302</div><h3>Murder</h3><p>Death caused with intention or knowledge.</p><span class="try">Try a sample →</span></button>
+            <button type="button" class="card ipc-card reveal" data-sample="case_2_self_defense_304"><div class="code" style="color:var(--amber)">304</div><h3>Culpable homicide</h3><p>Killing not amounting to murder, e.g. in a sudden fight.</p><span class="try">Try a sample →</span></button>
+            <button type="button" class="card ipc-card reveal" data-sample="case_3_cheating_420"><div class="code" style="color:var(--blue)">420</div><h3>Cheating</h3><p>Dishonestly inducing delivery of property.</p><span class="try">Try a sample →</span></button>
+            <button type="button" class="card ipc-card reveal" data-sample="case_4_simple_hurt_323"><div class="code" style="color:var(--green)">323</div><h3>Causing hurt</h3><p>Voluntarily causing bodily pain or injury.</p><span class="try">Try a sample →</span></button>
+        </div>
+    </section>
+</main>
+
+<footer class="footer">
+    <div class="container footer-inner">
+        <span>⚖ CourtMind · v{{ version }}</span>
+        <span>An educational simulation. Not legal advice.</span>
     </div>
+</footer>
 
-    <script>
-        // Show selected file name
-        const fileInput = document.getElementById("case-file-input");
-        const fileLabel = document.getElementById("file-label");
-        const caseText = document.getElementById("case-text-input");
-        const evidenceInput = document.getElementById("evidence-files-input");
-        const evidenceList = document.getElementById("evidence-file-list");
+<!-- Loading overlay -->
+<div class="loader hidden" id="loader" role="status" aria-live="polite">
+    <div class="card loader-box">
+        <span class="loader-gavel" aria-hidden="true">🔨</span>
+        <h3>Court is convening…</h3>
+        <ol class="loader-steps" id="loader-steps">
+            <li><span class="ico"></span>Reading the case file</li>
+            <li><span class="ico"></span>Extracting legal facts</li>
+            <li><span class="ico"></span>Detecting the IPC section</li>
+            <li><span class="ico"></span>Weighing evidence & burden of proof</li>
+            <li><span class="ico"></span>Hearing prosecution and defence</li>
+            <li><span class="ico"></span>Panel deliberation</li>
+        </ol>
+        <p class="loader-note">First visit in a while? The free server may take up to a minute to wake up.</p>
+    </div>
+</div>
 
-        fileInput.addEventListener("change", function () {
-            if (this.files.length > 0) {
-                fileLabel.innerHTML = '<span class="text-green-400 text-lg">&#10003;</span> ' +
-                    '<strong>' + this.files[0].name + '</strong>' +
-                    '<br><span class="text-sm text-gray-400">' +
-                    (this.files[0].size / 1024).toFixed(1) + ' KB</span>';
-            }
-        });
-
-        evidenceInput.addEventListener("change", function () {
-            evidenceList.innerHTML = "";
-            if (this.files.length === 0) return;
-
-            const list = document.createElement("ul");
-            list.className = "list-disc list-inside space-y-1";
-            Array.from(this.files).forEach(function (file) {
-                const item = document.createElement("li");
-                item.textContent = file.name + " (" + (file.type || "unknown") + ")";
-                list.appendChild(item);
-            });
-            evidenceList.appendChild(list);
-        });
-
-        // If user types text, remove file required
-        caseText.addEventListener("input", function () {
-            fileInput.required = !this.value.trim();
-        });
-        fileInput.addEventListener("change", function () {
-            if (this.files.length > 0) {
-                caseText.required = false;
-                caseText.removeAttribute("required");
-            }
-        });
-
-        // Form validation
-        document.getElementById("case-form").addEventListener("submit", function (e) {
-            const hasFile = fileInput.files.length > 0;
-            const hasText = caseText.value.trim().length > 0;
-            if (!hasFile && !hasText) {
-                e.preventDefault();
-                document.getElementById("upload-status").textContent = "Please upload a file or paste case text.";
-                document.getElementById("upload-status").className = "text-sm mt-3 text-red-400";
-            }
-        });
-    </script>
+<script src="/static/js/landing.js?v={{ version }}"></script>
 </body>
 </html>

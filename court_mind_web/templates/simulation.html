@@ -3,338 +3,176 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>CourtMind — Courtroom Simulation</title>
-    <script src="https://cdn.tailwindcss.com"></script>
-    <link rel="stylesheet" href="/static/styles.css">
-    <style>
-        body.ancient-body {
-            background:
-                radial-gradient(circle at 20% 15%, rgba(227, 193, 111, 0.12), transparent 26%),
-                radial-gradient(circle at 80% 12%, rgba(121, 63, 31, 0.18), transparent 24%),
-                linear-gradient(180deg, rgba(13, 8, 6, 0.86), rgba(6, 4, 3, 0.96)),
-                linear-gradient(135deg, #140d0a 0%, #251610 38%, #120b09 100%) !important;
-            color: #f4e8cc !important;
-        }
-
-        .court-card,
-        .royal-archive,
-        .royal-chronicle,
-        .court-scroll-panel,
-        .parchment-panel,
-        .court-panel {
-            background: linear-gradient(180deg, rgba(56, 31, 21, 0.96), rgba(30, 16, 12, 0.98)) !important;
-            border: 1px solid rgba(227, 193, 111, 0.28) !important;
-            color: #f4e8cc !important;
-            box-shadow:
-                0 12px 36px rgba(0, 0, 0, 0.6),
-                inset 0 1px 0 rgba(255, 255, 255, 0.04),
-                inset 0 -1px 0 rgba(0, 0, 0, 0.25) !important;
-        }
-
-        .court-panel.parchment-panel {
-            background: linear-gradient(180deg, rgba(241, 227, 196, 0.97), rgba(214, 188, 143, 0.95)) !important;
-            color: #2a1a11 !important;
-        }
-
-        .royal-header,
-        .court-topbar,
-        .court-stage,
-        .court-ritual-form {
-            background-color: transparent;
-        }
-
-        .royal-button-primary,
-        #btn-play,
-        #btn-replay {
-            background: linear-gradient(180deg, #e1bc68 0%, #a66d2f 100%) !important;
-            color: #fff6de !important;
-        }
-
-        .royal-button-ghost,
-        .royal-button-quiet {
-            background: linear-gradient(180deg, rgba(73, 46, 33, 0.98), rgba(39, 23, 17, 1)) !important;
-            color: #f4e8cc !important;
-        }
-    </style>
-    <style>
-        /* Actor card states */
-        .actor-card { transition: all 0.4s ease; border: 2px solid transparent; }
-        .actor-card.speaking { border-color: #22d3ee; box-shadow: 0 0 20px rgba(34,211,238,0.4); }
-        .actor-card.thinking { border-color: #facc15; box-shadow: 0 0 15px rgba(250,204,21,0.3); }
-        .actor-card.voting   { border-color: #a78bfa; box-shadow: 0 0 15px rgba(167,139,250,0.3); }
-        .actor-card.idle     { opacity: 0.6; }
-
-        /* Speech bubble */
-        .speech-bubble {
-            position: relative; background: #1e293b; border-radius: 12px;
-            padding: 12px 16px; margin-top: 8px; font-size: 0.875rem;
-            animation: fadeSlideIn 0.4s ease;
-        }
-        .speech-bubble::before {
-            content: ''; position: absolute; top: -8px; left: 20px;
-            border-left: 8px solid transparent; border-right: 8px solid transparent;
-            border-bottom: 8px solid #1e293b;
-        }
-
-        /* Typing dots */
-        .typing-dots span {
-            display: inline-block; width: 8px; height: 8px;
-            background: #facc15; border-radius: 50%; margin: 0 2px;
-            animation: bounce 1.2s infinite;
-        }
-        .typing-dots span:nth-child(2) { animation-delay: 0.2s; }
-        .typing-dots span:nth-child(3) { animation-delay: 0.4s; }
-
-        /* Timeline */
-        .timeline-item { transition: background 0.3s; }
-        .timeline-item.active { background: #334155; }
-        .timeline-item.past   { opacity: 0.5; }
-
-        /* Gavel animation */
-        @keyframes gavelStrike {
-            0%   { transform: rotate(0deg); }
-            30%  { transform: rotate(-30deg); }
-            60%  { transform: rotate(5deg); }
-            100% { transform: rotate(0deg); }
-        }
-        .gavel-anim { animation: gavelStrike 0.6s ease; }
-
-        @keyframes fadeSlideIn {
-            from { opacity: 0; transform: translateY(10px); }
-            to   { opacity: 1; transform: translateY(0); }
-        }
-        @keyframes bounce {
-            0%, 80%, 100% { transform: translateY(0); }
-            40% { transform: translateY(-8px); }
-        }
-
-        /* Vote badge */
-        .vote-badge {
-            display: inline-block; padding: 2px 10px; border-radius: 9999px;
-            font-weight: 700; font-size: 0.75rem; text-transform: uppercase;
-        }
-        .vote-guilty     { background: #dc2626; color: #fff; }
-        .vote-not-guilty { background: #16a34a; color: #fff; }
-
-        /* Progress bar */
-        .progress-track { background: #374151; border-radius: 8px; height: 6px; }
-        .progress-fill  { background: #3b82f6; height: 6px; border-radius: 8px; transition: width 0.3s; }
-
-        /* Evidence card */
-        .evidence-card { animation: fadeSlideIn 0.4s ease; }
-
-        /* Scrollbar */
-        .custom-scroll::-webkit-scrollbar { width: 6px; }
-        .custom-scroll::-webkit-scrollbar-thumb { background: #4b5563; border-radius: 3px; }
-    </style>
+    <title>CourtMind — Courtroom</title>
+    <meta name="theme-color" content="#0a0a0f">
+    <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>⚖️</text></svg>">
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:wght@500;600;700&family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="/static/styles.css?v={{ cache_bust }}">
 </head>
+<body class="sim-body">
 
-<body class="ancient-body min-h-screen flex flex-col">
-    <!-- Top Status Bar -->
-<div class="royal-header court-topbar px-6 py-3 flex items-center justify-between shadow-2xl">        <a href="/" class="text-lg font-bold hover:text-amber-200 transition">&#9878; CourtMind</a>
-        <div class="flex items-center gap-4">
-            <span id="status-badge" class="royal-button-quiet px-3 py-1 rounded-full text-sm font-semibold bg-amber-900">
-                Preparing
-            </span>
-            <span id="event-counter" class="text-gray-400 text-sm">0 / 0</span>
+<nav class="nav">
+    <div class="container sim-top">
+        <a href="/" class="brand"><span class="brand-mark"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 3v18M7 21h10M4 7h16M4 7l-3 7a4 3 0 0 0 6 0L4 7zM20 7l-3 7a4 3 0 0 0 6 0l-3-7z"/></svg></span><span class="brand-name hide-sm">CourtMind</span></a>
+        <span class="spacer"></span>
+        <span id="status-badge" class="pill status-pill ready"><span class="dot"></span><span id="status-text">Ready</span></span>
+        <span id="event-counter" class="pill hide-sm">0 / 0</span>
+        <button id="btn-report-top" class="btn btn-sm">📜 <span class="hide-sm">Full report</span></button>
+        <a href="/" id="btn-back" class="btn btn-sm btn-ghost">← <span class="hide-sm">New case</span></a>
+    </div>
+</nav>
+
+<main class="container">
+    <section class="case-header">
+        <div>
+            <span class="eyebrow">In the matter of</span>
+            <h1 id="case-title">Courtroom simulation</h1>
+            <div class="meta" id="case-meta"></div>
         </div>
-        <div class="flex gap-2">
-            <button id="btn-back" class="royal-button-ghost bg-gray-700 hover:bg-gray-600 px-3 py-1 rounded text-sm"
-                    title="Back to Case Input">
-                &larr; Back
-            </button>
-        </div>
+        <div class="stat-row" id="case-stats"></div>
+    </section>
+
+    <div class="scrubber" id="scrubber" role="slider" aria-label="Simulation timeline" tabindex="0" aria-valuemin="0" aria-valuenow="0">
+        <div class="scrubber-track"></div>
+        <div class="scrubber-fill" id="progress-fill"></div>
+        <div id="scrubber-dots"></div>
+        <div class="scrubber-tip" id="scrubber-tip"></div>
     </div>
 
-    <!-- Progress Bar -->
-    <div class="progress-track mx-6 mt-2">
-        <div id="progress-fill" class="progress-fill" style="width: 0%"></div>
-    </div>
-
-    <!-- Main Courtroom Layout -->
-    <div class="court-stage flex-1 grid grid-cols-12 gap-4 p-4 overflow-y-auto pb-40">
-
-        <!-- LEFT COLUMN: Parties (victim + accused) -->
-        <div class="col-span-3 flex flex-col gap-4">
-
-            <!-- Victim Card -->
-            <div id="card-victim" class="actor-card court-card court-panel rounded-lg p-4 idle">
-                <div class="flex items-center gap-3 mb-2">
-                    <div class="w-10 h-10 rounded-full bg-red-700 flex items-center justify-center text-lg">&#128100;</div>
-                    <div>
-                        <h3 class="font-bold">Victim</h3>
-                        <span id="state-victim" class="text-xs text-gray-400">Idle</span>
-                    </div>
+    <div class="court">
+        <div class="stage">
+            <!-- Judges' bench -->
+            <div class="bench">
+                <span class="bench-label">The Bench</span>
+                <div id="card-textualist_judge" class="actor c-textualist_judge">
+                    <div class="actor-head"><div class="avatar">📖</div><div><div class="actor-name">Textualist Judge</div><div class="actor-state" id="state-textualist_judge">Idle</div></div></div>
+                    <div class="actor-line" id="speech-textualist_judge"></div>
+                    <div class="vote-slot" id="vote-textualist_judge"></div>
                 </div>
-                <div id="speech-victim" class="min-h-[40px]"></div>
+                <div id="card-evidence_judge" class="actor c-evidence_judge">
+                    <div class="actor-head"><div class="avatar">🔍</div><div><div class="actor-name">Evidence Judge</div><div class="actor-state" id="state-evidence_judge">Idle</div></div></div>
+                    <div class="actor-line" id="speech-evidence_judge"></div>
+                    <div class="vote-slot" id="vote-evidence_judge"></div>
+                </div>
+                <div id="card-burden_judge" class="actor c-burden_judge">
+                    <div class="actor-head"><div class="avatar">⚖️</div><div><div class="actor-name">Burden Judge</div><div class="actor-state" id="state-burden_judge">Idle</div></div></div>
+                    <div class="actor-line" id="speech-burden_judge"></div>
+                    <div class="vote-slot" id="vote-burden_judge"></div>
+                </div>
             </div>
 
-            <!-- Accused Card -->
-            <div id="card-accused" class="actor-card court-card rounded-lg p-4 idle">
-                <div class="flex items-center gap-3 mb-2">
-                    <div class="w-10 h-10 rounded-full bg-orange-700 flex items-center justify-center text-lg">&#128113;</div>
-                    <div>
-                        <h3 class="font-bold">Accused</h3>
-                        <span id="state-accused" class="text-xs text-gray-400">Idle</span>
-                    </div>
+            <!-- Courtroom floor -->
+            <div class="floor">
+                <div id="card-prosecutor" class="actor c-prosecutor">
+                    <div class="actor-head"><div class="avatar">🏛️</div><div><div class="actor-name">Prosecution</div><div class="actor-state" id="state-prosecutor">Idle</div></div></div>
+                    <div class="actor-line" id="speech-prosecutor"></div>
                 </div>
-                <div id="speech-accused" class="min-h-[40px]"></div>
+
+                <div class="spotlight" id="spotlight" aria-live="polite">
+                    <div class="spotlight-head">
+                        <span class="spotlight-type" id="spot-type">Court is ready</span>
+                        <span class="spotlight-who" id="spot-who"></span>
+                    </div>
+                    <div class="spotlight-text" id="spot-text"></div>
+                    <div class="spotlight-empty" id="spot-empty">Press <kbd>Space</kbd> or ▶ Play to begin the hearing.</div>
+                </div>
+
+                <div id="card-defense" class="actor c-defense">
+                    <div class="actor-head"><div class="avatar">🛡️</div><div><div class="actor-name">Defence</div><div class="actor-state" id="state-defense">Idle</div></div></div>
+                    <div class="actor-line" id="speech-defense"></div>
+                </div>
             </div>
 
-            <!-- Evidence Board -->
-            <div class="royal-archive bg-gray-800 rounded-lg p-4 flex-1 overflow-y-auto custom-scroll">
-                <h3 class="font-bold mb-3 ancient-heading">📜 Royal Evidence Archive</h3>
-                <div id="evidence-board" class="space-y-2 text-sm"></div>
+            <!-- Witness stand -->
+            <div class="witnesses">
+                <div id="card-victim" class="actor c-victim">
+                    <div class="actor-head"><div class="avatar">🧍</div><div><div class="actor-name">Victim / Complainant</div><div class="actor-state" id="state-victim">Idle</div></div></div>
+                    <div class="actor-line" id="speech-victim"></div>
+                </div>
+                <div id="card-accused" class="actor c-accused">
+                    <div class="actor-head"><div class="avatar">🧑‍⚖️</div><div><div class="actor-name">Accused</div><div class="actor-state" id="state-accused">Idle</div></div></div>
+                    <div class="actor-line" id="speech-accused"></div>
+                </div>
+            </div>
+
+            <div id="card-panel" class="actor c-panel">
+                <div class="actor-head"><div class="avatar">🏛</div><div><div class="actor-name">Panel</div><div class="actor-state" id="state-panel">Idle</div></div></div>
+                <div class="actor-line" id="speech-panel"></div>
             </div>
         </div>
 
-        <!-- CENTER COLUMN: Lawyers + Event Log -->
-        <div class="col-span-6 flex flex-col gap-4">
+        <aside class="side">
+            <section class="card side-card grow">
+                <header><h3>📖 Court record</h3><span class="count" id="log-count">0</span></header>
+                <div class="scroll" id="event-log"><div class="empty">The record is empty until the hearing starts.</div></div>
+            </section>
+            <section class="card side-card">
+                <header><h3>🗂️ Evidence archive</h3><span class="count" id="evidence-count">0</span></header>
+                <div class="scroll" id="evidence-board" style="max-height:230px"></div>
+            </section>
+        </aside>
+    </div>
+</main>
 
-            <div class="grid grid-cols-2 gap-4">
-                <!-- Prosecutor Card -->
-                <div id="card-prosecutor" class="actor-card court-card rounded-lg p-4 idle">
-                    <div class="flex items-center gap-3 mb-2">
-                        <div class="w-10 h-10 rounded-full bg-amber-800 flex items-center justify-center text-lg">&#9878;</div>
-                        <div>
-                            <h3 class="font-bold">Prosecutor</h3>
-                            <span id="state-prosecutor" class="text-xs text-gray-400">Idle</span>
-                        </div>
-                    </div>
-                    <div id="speech-prosecutor" class="min-h-[40px]"></div>
-                </div>
+<!-- Playback dock -->
+<div class="dock" role="toolbar" aria-label="Playback controls">
+    <button id="btn-restart" class="btn btn-icon btn-ghost" title="Restart (R)" aria-label="Restart">↺</button>
+    <button id="btn-prev" class="btn btn-icon btn-ghost" title="Previous (←)" aria-label="Previous event">⏮</button>
+    <button id="btn-play" class="btn btn-primary play" title="Play / pause (Space)">▶ <span class="label">Play</span></button>
+    <button id="btn-next" class="btn btn-icon btn-ghost" title="Next (→)" aria-label="Next event">⏭</button>
+    <span class="sep"></span>
+    <div class="speed" id="speed" role="group" aria-label="Playback speed">
+        <button type="button" data-speed="3200" aria-pressed="false">0.5×</button>
+        <button type="button" data-speed="1900" aria-pressed="true">1×</button>
+        <button type="button" data-speed="950" aria-pressed="false">2×</button>
+        <button type="button" data-speed="350" aria-pressed="false">4×</button>
+    </div>
+    <span class="sep keys"></span>
+    <button id="btn-skip" class="btn btn-sm btn-ghost" title="Skip to verdict (V)">Verdict ⇥</button>
+</div>
 
-                <!-- Defense Card -->
-                <div id="card-defense" class="actor-card court-card rounded-lg p-4 idle">
-                    <div class="flex items-center gap-3 mb-2">
-                        <div class="w-10 h-10 rounded-full bg-green-700 flex items-center justify-center text-lg">&#128737;</div>
-                        <div>
-                            <h3 class="font-bold">Defense</h3>
-                            <span id="state-defense" class="text-xs text-gray-400">Idle</span>
-                        </div>
-                    </div>
-                    <div id="speech-defense" class="min-h-[40px]"></div>
-                </div>
-            </div>
-
-            <!-- Live Event Log -->
-            <div class="royal-chronicle bg-gray-800 rounded-lg p-4 flex-1 overflow-y-auto custom-scroll">
-<h3 class="font-bold mb-3 ancient-heading">📖 Court Chronicles</h3>                <div id="event-log" class="space-y-2 text-sm"></div>
-            </div>
+<!-- Verdict modal -->
+<div id="verdict-overlay" class="modal hidden" role="dialog" aria-modal="true" aria-labelledby="verdict-title">
+    <div class="card verdict-card">
+        <div class="verdict-gavel" id="verdict-gavel">🔨</div>
+        <div class="verdict-label">The panel finds the accused</div>
+        <h2 id="verdict-title" class="verdict-title"></h2>
+        <p id="verdict-detail" class="verdict-detail"></p>
+        <div class="verdict-votes" id="verdict-votes"></div>
+        <div class="gauge hidden" id="verdict-gauge">
+            <div class="gauge-head"><span>Estimated conviction probability</span><strong id="gauge-val"></strong></div>
+            <div class="gauge-bar"><span id="gauge-fill"></span></div>
         </div>
-
-        <!-- RIGHT COLUMN: Judges Panel -->
-        <div class="col-span-3 flex flex-col gap-4">
-
-            <!-- Judge: Textualist -->
-            <div id="card-textualist_judge" class="actor-card court-card rounded-lg p-4 idle">
-                <div class="flex items-center gap-3 mb-2">
-                    <div class="w-10 h-10 rounded-full bg-amber-900 flex items-center justify-center text-lg">&#128214;</div>
-                    <div>
-                        <h3 class="font-bold text-sm">Textualist Judge</h3>
-                        <span id="state-textualist_judge" class="text-xs text-gray-400">Idle</span>
-                    </div>
-                </div>
-                <div id="speech-textualist_judge" class="min-h-[30px]"></div>
-                <div id="vote-textualist_judge" class="mt-2"></div>
-            </div>
-
-            <!-- Judge: Evidence-Focused -->
-            <div id="card-evidence_judge" class="actor-card court-card rounded-lg p-4 idle">
-                <div class="flex items-center gap-3 mb-2">
-                    <div class="w-10 h-10 rounded-full bg-yellow-900 flex items-center justify-center text-lg">&#128269;</div>
-                    <div>
-                        <h3 class="font-bold text-sm">Evidence Judge</h3>
-                        <span id="state-evidence_judge" class="text-xs text-gray-400">Idle</span>
-                    </div>
-                </div>
-                <div id="speech-evidence_judge" class="min-h-[30px]"></div>
-                <div id="vote-evidence_judge" class="mt-2"></div>
-            </div>
-
-            <!-- Judge: Burden-Strict -->
-            <div id="card-burden_judge" class="actor-card court-card rounded-lg p-4 idle">
-                <div class="flex items-center gap-3 mb-2">
-                    <div class="w-10 h-10 rounded-full bg-red-900 flex items-center justify-center text-lg">&#9878;</div>
-                    <div>
-                        <h3 class="font-bold text-sm">Burden Judge</h3>
-                        <span id="state-burden_judge" class="text-xs text-gray-400">Idle</span>
-                    </div>
-                </div>
-                <div id="speech-burden_judge" class="min-h-[30px]"></div>
-                <div id="vote-burden_judge" class="mt-2"></div>
-            </div>
-
-            <!-- Panel / System -->
-            <div id="card-panel" class="actor-card court-card rounded-lg p-4 idle flex-1">
-                <div class="flex items-center gap-3 mb-2">
-                    <div class="w-10 h-10 rounded-full bg-gray-600 flex items-center justify-center text-lg">&#127981;</div>
-                    <div>
-                        <h3 class="font-bold text-sm">Panel</h3>
-                        <span id="state-panel" class="text-xs text-gray-400">Idle</span>
-                    </div>
-                </div>
-                <div id="speech-panel" class="min-h-[30px]"></div>
-            </div>
+        <div class="verdict-actions">
+            <button id="btn-details" class="btn btn-primary">📜 Full report</button>
+            <button id="btn-replay" class="btn">↺ Replay</button>
+            <a id="btn-home" href="/" class="btn btn-ghost">New case</a>
         </div>
     </div>
+</div>
 
-    <!-- Playback Controls -->
-        <div class="court-scroll-panel bg-gray-800 px-6 py-3 flex items-center justify-center gap-4 shadow-inner sticky bottom-0 z-40">
-        <button id="btn-restart" class="royal-button-ghost bg-gray-700 hover:bg-gray-600 px-4 py-2 rounded font-semibold"
-                title="Restart">&#8635; Restart</button>
-        <button id="btn-prev" class="royal-button-ghost bg-gray-700 hover:bg-gray-600 px-4 py-2 rounded font-semibold"
-                title="Previous">&laquo; Prev</button>
-        <button id="btn-play" class="royal-button px-6 py-2 rounded font-bold text-lg"
-                title="Play / Pause">&#9654; Play</button>
-        <button id="btn-next" class="royal-button-ghost bg-gray-700 hover:bg-gray-600 px-4 py-2 rounded font-semibold"
-                title="Next">Next &raquo;</button>
-        <select id="speed-select" class="royal-button-ghost bg-gray-700 hover:bg-gray-600 px-4 py-2 rounded font-semibold">
-            <option value="3000" class="text-gray-700">Slow</option>
-            <option value="1800" selected class="text-gray-700">Normal</option>
-            <option value="800"  class="text-gray-700">Fast</option>
-            <option value="300" class="text-gray-700">Instant</option>
-        </select>
-    </div>
-
-    <!-- Verdict Overlay (hidden initially) -->
-    <div id="verdict-overlay" class="fixed inset-0 bg-black/80 flex items-center justify-center z-50 hidden">
-        <div class="court-panel parchment-panel rounded-2xl p-10 text-center max-w-lg mx-4 shadow-2xl">
-            <div id="verdict-gavel" class="text-6xl mb-4">&#9878;</div>
-            <h2 id="verdict-title" class="text-3xl font-bold mb-4"></h2>
-            <p id="verdict-detail" class="text-gray-700 mb-6"></p>
-            <div class="flex gap-4 justify-center">
-                <button id="btn-replay" class="royal-button royal-button-primary bg-amber-800 hover:bg-amber-700 px-6 py-2 rounded font-bold">
-                    &#8635; Replay
-                </button>
-                <button id="btn-details" class="royal-button-ghost bg-gray-700 hover:bg-gray-600 px-6 py-2 rounded font-bold">
-                    &#128196; Full Report
-                </button>
-                <button id="btn-home" class="royal-button-ghost bg-gray-700 hover:bg-gray-600 px-6 py-2 rounded font-bold">
-                    &larr; New Case
-                </button>
+<!-- Report drawer -->
+<div id="report-panel" class="drawer hidden" role="dialog" aria-modal="true" aria-labelledby="report-heading">
+    <div class="drawer-panel">
+        <div class="drawer-head">
+            <h2 id="report-heading">Case report</h2>
+            <div style="display:flex;gap:8px">
+                <button id="btn-download" class="btn btn-sm" title="Download the raw result as JSON">⬇ JSON</button>
+                <button id="btn-print" class="btn btn-sm" title="Print or save as PDF">🖨 Print</button>
+                <button id="btn-close-report" class="btn btn-sm btn-icon" aria-label="Close report">✕</button>
             </div>
         </div>
+        <div class="drawer-tabs" id="report-tabs" role="tablist"></div>
+        <div class="drawer-body" id="report-content"></div>
     </div>
+</div>
 
-    <!-- Full Report Panel (hidden initially) -->
-    <div id="report-panel" class="fixed inset-0 bg-black/80 z-50 hidden overflow-y-auto">
-        <div class="max-w-4xl mx-auto my-10 royal-archive bg-gray-800 rounded-2xl p-8 shadow-2xl">
-            <div class="flex justify-between items-center mb-6">
-                <h2 class="text-2xl font-bold">&#128220; Full Case Report</h2>
-                <button id="btn-close-report" class="royal-button-ghost bg-gray-700 hover:bg-gray-600 px-4 py-2 rounded">
-                    &times; Close
-                </button>
-            </div>
-            <div id="report-content" class="space-y-6 text-sm"></div>
-        </div>
-    </div>
-
-    <!-- Inject events data from backend -->
-    <script>
-        const SIMULATION_EVENTS = {{ events_json | safe }};
-        const CASE_RESULT = {{ case_result_json | safe }};
-    </script>
-    <script src="/static/js/simulation_player.js?v={{ cache_bust }}"></script>
+<script>
+    window.SIMULATION_EVENTS = {{ events_json | safe }};
+    window.CASE_RESULT = {{ case_result_json | safe }};
+</script>
+<script src="/static/js/simulation_player.js?v={{ cache_bust }}"></script>
 </body>
 </html>

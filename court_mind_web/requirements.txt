@@ -1,6 +1,10 @@
-fastapi
-uvicorn
-jinja2
-python-multipart
-pdfminer.six
-python-docx
+# Minimal runtime dependencies for the CourtMind web app (used by Render).
+# The full research / RAG stack lives in the root requirements.txt and is
+# NOT needed to serve the website.
+fastapi==0.134.0
+starlette==0.52.1
+uvicorn[standard]==0.41.0
+jinja2==3.1.6
+python-multipart==0.0.22
+pdfminer.six==20251230
+python-docx==1.2.0
